@@ -46,7 +46,7 @@ impl Error for BDecodeError {
 ///
 /// This is either an integer, a bytestring, a list or a dictionary (with
 /// bytestring keys).
-#[derive(PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum BItem {
     Integer(i32),
     Bytestring(Vec<u8>),
@@ -175,7 +175,43 @@ impl BItem {
             Err(BDecodeError::UnexpectedEOF)
         // Dictionary
         } else if bencoded[0] == b'd' {
-            panic!();
+            if depth >= MAX_DEPTH {
+                return Err(BDecodeError::DepthExceeded);
+            }
+            let mut pos = 1;
+            let mut val = HashMap::new();
+            let mut last_key = None;
+            while pos < bencoded.len() {
+                if bencoded[pos] == b'e' {
+                    return Ok((BItem::Dictionary(val), pos + 1));
+                }
+                let (key_item, p) = try!(BItem::parse_internal_r(
+                    &bencoded[pos..],
+                    allow_out_of_order,
+                    depth + 1));
+                pos += p;
+                let key = match key_item {
+                    BItem::Bytestring(bytes) => bytes,
+                    _ => return Err(BDecodeError::NonBytesKey),
+                };
+                if let Some(ref oldkey) = last_key {
+                    if oldkey == &key {
+                        return Err(BDecodeError::DuplicatedKey);
+                    } else if !allow_out_of_order && oldkey > &key {
+                        return Err(BDecodeError::OutOfOrderKey);
+                    }
+                }
+                last_key = Some(key.clone());
+                let (value, p) = try!(BItem::parse_internal_r(
+                    &bencoded[pos..],
+                    allow_out_of_order,
+                    depth + 1));
+                pos += p;
+                if val.insert(key, value).is_some() {
+                    return Err(BDecodeError::DuplicatedKey);
+                }
+            }
+            Err(BDecodeError::UnexpectedEOF)
         // Bytestring
         } else if is_digit(bencoded[0]) {
             let mut length = (bencoded[0] - b'0') as usize;
@@ -251,4 +287,29 @@ fn test_bytes() {
                Err(BDecodeError::UnexpectedEOF));
     assert_eq!(BItem::parse(b"4:hello"),
                Err(BDecodeError::TrailingTokens));
+}
+
+#[test]
+fn test_dictionary() {
+    assert_eq!(BItem::parse(b"de"),
+               Ok(BItem::Dictionary(HashMap::new())));
+    assert_eq!(BItem::parse(b"d5:hello"),
+               Err(BDecodeError::UnexpectedEOF));
+    assert_eq!(BItem::parse(b"di1ei2ee"),
+               Err(BDecodeError::NonBytesKey));
+    assert_eq!(BItem::parse(b"d5:helloi1e"),
+               Err(BDecodeError::UnexpectedEOF));
+    assert_eq!(
+        BItem::parse(b"d5:helloi1e3:who5:worlde"),
+        Ok(BItem::Dictionary([
+            ((b"hello" as &[u8]).to_owned(),
+             BItem::Integer(1)),
+            ((b"who" as &[u8]).to_owned(),
+             BItem::Bytestring((b"world" as &[u8]).to_owned()))
+            ].iter().cloned().collect())));
+    assert!(BItem::parse_raw(b"d2:bbi4e2:aai4ee").is_ok());
+    assert_eq!(BItem::parse(b"d2:bbi4e2:aai4ee"),
+               Err(BDecodeError::OutOfOrderKey));
+    assert_eq!(BItem::parse(b"d2:aai4e2:aai4ee"),
+               Err(BDecodeError::DuplicatedKey));
 }
