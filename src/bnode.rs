@@ -17,6 +17,7 @@ pub enum BDecodeError {
     NonBytesKey,
     TrailingTokens,
     UnexpectedEOF,
+    DepthExceeded,
 }
 
 impl fmt::Display for BDecodeError {
@@ -35,6 +36,7 @@ impl Error for BDecodeError {
             BDecodeError::TrailingTokens => "Trailing characters after root \
                                              object",
             BDecodeError::UnexpectedEOF => "Premature end of message",
+            BDecodeError::DepthExceeded => "Maximum depth exceeded",
         }
     }
 }
@@ -59,8 +61,10 @@ impl fmt::Debug for BItem {
             BItem::Bytestring(ref v) => write!(f, "{:?}", v),
             BItem::List(ref v) => {
                 try!(write!(f, "["));
-                for e in v.iter() {
-                    try!(write!(f, "{:?}", e));
+                for (i, e) in v.iter().enumerate() {
+                    try!(write!(f, "{}{:?}",
+                                if i == 0 { "" } else { ", " },
+                                e));
                 }
                 try!(write!(f, "]"));
                 Ok(())
@@ -85,6 +89,8 @@ fn is_digit(b: u8) -> bool {
 }
 
 
+const MAX_DEPTH: u32 = 32;
+
 impl BItem {
     /// Parse a dhstore BNode as a tree of BItems.
     ///
@@ -92,7 +98,7 @@ impl BItem {
     /// dictionaries; use parse_raw() if parsing DHT messages where this
     /// behavior is not expected.
     pub fn parse(bencoded: &[u8]) -> Result<BItem, BDecodeError> {
-        Self::parse_internal(bencoded, false, 0)
+        Self::parse_internal(bencoded, false)
     }
 
     /// Parse a bencoded message.
@@ -101,11 +107,22 @@ impl BItem {
     /// (BDecodeError::OutOfOrderKey will never be returned); use parse() if
     /// parsing a dhstore BNode where this behavior is expected.
     pub fn parse_raw(bencoded: &[u8]) -> Result<BItem, BDecodeError> {
-        Self::parse_internal(bencoded, true, 0)
+        Self::parse_internal(bencoded, true)
     }
 
-    fn parse_internal(bencoded: &[u8], allow_out_of_order: bool, depth: u32)
+    fn parse_internal(bencoded: &[u8], allow_out_of_order: bool)
             -> Result<BItem, BDecodeError> {
+        let (result, pos) = try!(
+            Self::parse_internal_r(bencoded, allow_out_of_order, 0));
+        if pos == bencoded.len() {
+            Ok(result)
+        } else {
+            Err(BDecodeError::TrailingTokens)
+        }
+    }
+
+    fn parse_internal_r(bencoded: &[u8], allow_out_of_order: bool, depth: u32)
+            -> Result<(BItem, usize), BDecodeError> {
         if bencoded.len() < 2 {
             Err(BDecodeError::UnexpectedEOF)
         // Integer
@@ -132,15 +149,30 @@ impl BItem {
             }
             if pos >= bencoded.len() {
                 Err(BDecodeError::UnexpectedEOF)
-            } else if pos != bencoded.len() -1 || pos < 2 ||
-                    bencoded[pos] != b'e' {
+            } else if pos < 2 || bencoded[pos] != b'e' {
                 Err(BDecodeError::ParseError)
             } else {
-                Ok(BItem::Integer(sign * val))
+                Ok((BItem::Integer(sign * val), pos + 1))
             }
         // List
         } else if bencoded[0] == b'l' {
-            panic!();
+            if depth >= MAX_DEPTH {
+                return Err(BDecodeError::DepthExceeded);
+            }
+            let mut pos = 1;
+            let mut val = Vec::new();
+            while pos < bencoded.len() {
+                if bencoded[pos] == b'e' {
+                    return Ok((BItem::List(val), pos + 1));
+                }
+                let (result, p) = try!(BItem::parse_internal_r(
+                    &bencoded[pos..],
+                    allow_out_of_order,
+                    depth + 1));
+                val.push(result);
+                pos += p;
+            }
+            Err(BDecodeError::UnexpectedEOF)
         // Dictionary
         } else if bencoded[0] == b'd' {
             panic!();
@@ -154,19 +186,35 @@ impl BItem {
 }
 
 #[test]
-fn test_bdecode() {
-    assert_eq!(BItem::parse_raw("i12e".as_bytes()),
+fn test_integer() {
+    assert_eq!(BItem::parse(b"i12e"),
                Ok(BItem::Integer(12)));
-    assert_eq!(BItem::parse_raw("i0e".as_bytes()),
+    assert_eq!(BItem::parse(b"i0e"),
                Ok(BItem::Integer(0)));
-    assert_eq!(BItem::parse_raw("i00e".as_bytes()),
+    assert_eq!(BItem::parse(b"i00e"),
                Err(BDecodeError::ParseError));
-    assert_eq!(BItem::parse_raw("i-4e".as_bytes()),
+    assert_eq!(BItem::parse(b"i-4e"),
                Ok(BItem::Integer(-4)));
-    assert_eq!(BItem::parse_raw("ie".as_bytes()),
+    assert_eq!(BItem::parse(b"ie"),
                Err(BDecodeError::ParseError));
-    assert_eq!(BItem::parse_raw("i".as_bytes()),
+    assert_eq!(BItem::parse(b"i"),
                Err(BDecodeError::UnexpectedEOF));
-    assert_eq!(BItem::parse_raw("i123".as_bytes()),
+    assert_eq!(BItem::parse(b"i123"),
                Err(BDecodeError::UnexpectedEOF));
+}
+
+#[test]
+fn test_list() {
+    assert_eq!(BItem::parse(b"le"),
+               Ok(BItem::List(vec![])));
+    assert_eq!(BItem::parse(b"li12ei5ee"),
+               Ok(BItem::List(vec![BItem::Integer(12), BItem::Integer(5)])));
+    assert_eq!(BItem::parse(b"lle"),
+               Err(BDecodeError::UnexpectedEOF));
+    assert_eq!(BItem::parse(b"li-1eli2ei3eee"),
+               Ok(BItem::List(vec![
+                   BItem::Integer(-1),
+                   BItem::List(vec![BItem::Integer(2), BItem::Integer(3)])])));
+    assert_eq!(BItem::parse(&[b'l'; 128]),
+               Err(BDecodeError::DepthExceeded));
 }
