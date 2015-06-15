@@ -1,0 +1,10 @@
+[package]
+name = "dhstore"
+version = "0.0.1"
+authors = [ "Remi Rampin <remirampin@gmail.com>" ]
+
+[[bin]]
+name = "dhstore"
+
+[dependencies]
+log = "0.3"
