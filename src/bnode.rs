@@ -178,7 +178,27 @@ impl BItem {
             panic!();
         // Bytestring
         } else if is_digit(bencoded[0]) {
-            panic!();
+            let mut length = (bencoded[0] - b'0') as usize;
+            let mut pos = 1;
+            while pos < bencoded.len() && is_digit(bencoded[pos]) {
+                length = {
+                    let d = (bencoded[pos] - b'0') as usize;
+                    // Use checked overflow operations
+                    let l = length.checked_mul(10)
+                        .and_then(|l| l.checked_add(d));
+                    try!(l.ok_or(BDecodeError::ParseError))
+                };
+                pos += 1;
+            }
+            if pos >= bencoded.len() || bencoded[pos] != b':' {
+                return Err(BDecodeError::ParseError);
+            }
+            pos += 1;
+            if pos + length > bencoded.len() {
+                return Err(BDecodeError::UnexpectedEOF);
+            }
+            Ok((BItem::Bytestring(bencoded[pos..pos + length].to_owned()),
+                pos + length))
         } else {
             Err(BDecodeError::ParseError)
         }
@@ -217,4 +237,18 @@ fn test_list() {
                    BItem::List(vec![BItem::Integer(2), BItem::Integer(3)])])));
     assert_eq!(BItem::parse(&[b'l'; 128]),
                Err(BDecodeError::DepthExceeded));
+}
+
+#[test]
+fn test_bytes() {
+    assert_eq!(BItem::parse(b"0:"),
+               Ok(BItem::Bytestring(vec![])));
+    assert_eq!(BItem::parse(b"1:a"),
+               Ok(BItem::Bytestring((b"a" as &[u8]).to_owned())));
+    assert_eq!(BItem::parse(b"5:hello"),
+               Ok(BItem::Bytestring((b"hello" as &[u8]).to_owned())));
+    assert_eq!(BItem::parse(b"6:hello"),
+               Err(BDecodeError::UnexpectedEOF));
+    assert_eq!(BItem::parse(b"4:hello"),
+               Err(BDecodeError::TrailingTokens));
 }
