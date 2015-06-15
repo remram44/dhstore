@@ -136,7 +136,7 @@ impl BItem {
                 1
             };
             while pos < bencoded.len() && is_digit(bencoded[pos]) {
-                if bencoded[pos] == b'0' && val == 0 && pos > 1 {
+                if val == 0 && bencoded[pos - 1] == b'0' {
                     return Err(BDecodeError::ParseError);
                 }
                 val = {
@@ -217,6 +217,9 @@ impl BItem {
             let mut length = (bencoded[0] - b'0') as usize;
             let mut pos = 1;
             while pos < bencoded.len() && is_digit(bencoded[pos]) {
+                if length == 0 && bencoded[pos - 1] == b'0' {
+                    return Err(BDecodeError::ParseError);
+                }
                 length = {
                     let d = (bencoded[pos] - b'0') as usize;
                     // Use checked overflow operations
@@ -247,7 +250,9 @@ fn test_integer() {
                Ok(BItem::Integer(12)));
     assert_eq!(BItem::parse(b"i0e"),
                Ok(BItem::Integer(0)));
-    assert_eq!(BItem::parse(b"i00e"),
+    assert_eq!(BItem::parse(b"i10e"),
+               Ok(BItem::Integer(10)));
+    assert_eq!(BItem::parse(b"i01e"),
                Err(BDecodeError::ParseError));
     assert_eq!(BItem::parse(b"i-4e"),
                Ok(BItem::Integer(-4)));
@@ -287,6 +292,10 @@ fn test_bytes() {
                Err(BDecodeError::UnexpectedEOF));
     assert_eq!(BItem::parse(b"4:hello"),
                Err(BDecodeError::TrailingTokens));
+    assert_eq!(BItem::parse(b"10:helloworld"),
+               Ok(BItem::Bytestring((b"helloworld" as &[u8]).to_owned())));
+    assert_eq!(BItem::parse(b"01:a"),
+               Err(BDecodeError::ParseError));
 }
 
 #[test]
