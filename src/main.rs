@@ -1,10 +1,10 @@
 #[macro_use] extern crate log;
 
 
-mod bnode;
+mod bencode;
 
 
-pub use bnode::BItem;
+pub use bencode::BItem;
 
 
 fn main() {
