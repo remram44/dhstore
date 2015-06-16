@@ -3,6 +3,18 @@ use std::error::Error;
 use std::fmt;
 
 
+/// Simple utility function to build a Vec<u8> from a b"..." literal.
+///
+/// Usually imported with `use bencode::vecu8_from_slice as v;`.
+/// Currently, `let a: Vec<u8> = b"hello".to_owned();` doesn't compile. This
+/// allows you to do `let a: Vec<u8> = v(b"hello");` instead.
+pub fn vecu8_from_slice(s: &[u8]) -> Vec<u8> {
+    s.to_owned()
+}
+
+use self::vecu8_from_slice as v;
+
+
 /// Error decoding bencoded messages.
 ///
 /// Note that dhstore's BNodes must have ordered keys, but this is not a
@@ -285,15 +297,15 @@ fn test_bytes() {
     assert_eq!(BItem::parse(b"0:"),
                Ok(BItem::Bytestring(vec![])));
     assert_eq!(BItem::parse(b"1:a"),
-               Ok(BItem::Bytestring((b"a" as &[u8]).to_owned())));
+               Ok(BItem::Bytestring(v(b"a"))));
     assert_eq!(BItem::parse(b"5:hello"),
-               Ok(BItem::Bytestring((b"hello" as &[u8]).to_owned())));
+               Ok(BItem::Bytestring(v(b"hello"))));
     assert_eq!(BItem::parse(b"6:hello"),
                Err(BDecodeError::UnexpectedEOF));
     assert_eq!(BItem::parse(b"4:hello"),
                Err(BDecodeError::TrailingTokens));
     assert_eq!(BItem::parse(b"10:helloworld"),
-               Ok(BItem::Bytestring((b"helloworld" as &[u8]).to_owned())));
+               Ok(BItem::Bytestring(v(b"helloworld"))));
     assert_eq!(BItem::parse(b"01:a"),
                Err(BDecodeError::ParseError));
 }
@@ -311,10 +323,10 @@ fn test_dictionary() {
     assert_eq!(
         BItem::parse(b"d5:helloi1e3:who5:worlde"),
         Ok(BItem::Dictionary([
-            ((b"hello" as &[u8]).to_owned(),
+            (v(b"hello"),
              BItem::Integer(1)),
-            ((b"who" as &[u8]).to_owned(),
-             BItem::Bytestring((b"world" as &[u8]).to_owned()))
+            (v(b"who"),
+             BItem::Bytestring(v(b"world")))
             ].iter().cloned().collect())));
     assert!(BItem::parse_raw(b"d2:bbi4e2:aai4ee").is_ok());
     assert_eq!(BItem::parse(b"d2:bbi4e2:aai4ee"),
