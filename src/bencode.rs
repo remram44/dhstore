@@ -5,14 +5,15 @@ use std::fmt;
 
 /// Simple utility function to build a Vec<u8> from a b"..." literal.
 ///
-/// Usually imported with `use bencode::vecu8_from_slice as v;`.
+/// Usually imported with `use bencode::vec_from_slice as v;`.
 /// Currently, `let a: Vec<u8> = b"hello".to_owned();` doesn't compile. This
 /// allows you to do `let a: Vec<u8> = v(b"hello");` instead.
-pub fn vecu8_from_slice(s: &[u8]) -> Vec<u8> {
+pub fn vec_from_slice<T>(s: &[T]) -> Vec<T>
+        where [T]: ToOwned<Owned=Vec<T>> {
     s.to_owned()
 }
 
-use self::vecu8_from_slice as v;
+use self::vec_from_slice as v;
 
 
 /// Error decoding bencoded messages.
