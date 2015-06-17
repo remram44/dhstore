@@ -296,81 +296,71 @@ impl BItem {
     }
 }
 
+
+macro_rules! assert_encodes {
+    ( $enc:expr, $dec:expr ) => {
+        assert_eq!(BItem::parse($enc), Ok($dec));
+        assert_eq!(BItem::parse($enc).unwrap().serialize(), $enc);
+    };
+}
+
+macro_rules! assert_error {
+    ( $enc:expr, $err:expr ) => {
+        assert_eq!(BItem::parse($enc), Err($err));
+    }
+}
+
 #[test]
 fn test_integer() {
-    assert_eq!(BItem::parse(b"i12e"),
-               Ok(BItem::Integer(12)));
-    assert_eq!(BItem::parse(b"i0e"),
-               Ok(BItem::Integer(0)));
-    assert_eq!(BItem::parse(b"i10e"),
-               Ok(BItem::Integer(10)));
-    assert_eq!(BItem::parse(b"i01e"),
-               Err(BDecodeError::ParseError));
-    assert_eq!(BItem::parse(b"i-4e"),
-               Ok(BItem::Integer(-4)));
-    assert_eq!(BItem::parse(b"ie"),
-               Err(BDecodeError::ParseError));
-    assert_eq!(BItem::parse(b"i"),
-               Err(BDecodeError::UnexpectedEOF));
-    assert_eq!(BItem::parse(b"i123"),
-               Err(BDecodeError::UnexpectedEOF));
+    assert_encodes!(b"i12e", BItem::Integer(12));
+    assert_encodes!(b"i0e", BItem::Integer(0));
+    assert_encodes!(b"i10e", BItem::Integer(10));
+    assert_error!(b"i01e", BDecodeError::ParseError);
+    assert_encodes!(b"i-4e", BItem::Integer(-4));
+    assert_error!(b"ie", BDecodeError::ParseError);
+    assert_error!(b"i", BDecodeError::UnexpectedEOF);
+    assert_error!(b"i123", BDecodeError::UnexpectedEOF);
 }
 
 #[test]
 fn test_list() {
-    assert_eq!(BItem::parse(b"le"),
-               Ok(BItem::List(vec![])));
-    assert_eq!(BItem::parse(b"li12ei5ee"),
-               Ok(BItem::List(vec![BItem::Integer(12), BItem::Integer(5)])));
-    assert_eq!(BItem::parse(b"lle"),
-               Err(BDecodeError::UnexpectedEOF));
-    assert_eq!(BItem::parse(b"li-1eli2ei3eee"),
-               Ok(BItem::List(vec![
-                   BItem::Integer(-1),
-                   BItem::List(vec![BItem::Integer(2), BItem::Integer(3)])])));
-    assert_eq!(BItem::parse(&[b'l'; 128]),
-               Err(BDecodeError::DepthExceeded));
+    assert_encodes!(b"le", BItem::List(vec![]));
+    assert_encodes!(b"li12ei5ee",
+                    BItem::List(vec![BItem::Integer(12), BItem::Integer(5)]));
+    assert_error!(b"lle", BDecodeError::UnexpectedEOF);
+    assert_encodes!(b"li-1eli2ei3eee",
+                    BItem::List(vec![
+                        BItem::Integer(-1),
+                        BItem::List(vec![BItem::Integer(2),
+                                         BItem::Integer(3)])]));
+    assert_error!(&[b'l'; 128], BDecodeError::DepthExceeded);
 }
 
 #[test]
 fn test_bytes() {
-    assert_eq!(BItem::parse(b"0:"),
-               Ok(BItem::Bytestring(vec![])));
-    assert_eq!(BItem::parse(b"1:a"),
-               Ok(BItem::Bytestring(v(b"a"))));
-    assert_eq!(BItem::parse(b"5:hello"),
-               Ok(BItem::Bytestring(v(b"hello"))));
-    assert_eq!(BItem::parse(b"6:hello"),
-               Err(BDecodeError::UnexpectedEOF));
-    assert_eq!(BItem::parse(b"4:hello"),
-               Err(BDecodeError::TrailingTokens));
-    assert_eq!(BItem::parse(b"10:helloworld"),
-               Ok(BItem::Bytestring(v(b"helloworld"))));
-    assert_eq!(BItem::parse(b"01:a"),
-               Err(BDecodeError::ParseError));
+    assert_encodes!(b"0:", BItem::Bytestring(vec![]));
+    assert_encodes!(b"1:a", BItem::Bytestring(v(b"a")));
+    assert_encodes!(b"5:hello", BItem::Bytestring(v(b"hello")));
+    assert_error!(b"6:hello", BDecodeError::UnexpectedEOF);
+    assert_error!(b"4:hello", BDecodeError::TrailingTokens);
+    assert_encodes!(b"10:helloworld", BItem::Bytestring(v(b"helloworld")));
+    assert_error!(b"01:a", BDecodeError::ParseError);
 }
 
 #[test]
 fn test_dictionary() {
-    assert_eq!(BItem::parse(b"de"),
-               Ok(BItem::Dictionary(HashMap::new())));
-    assert_eq!(BItem::parse(b"d5:hello"),
-               Err(BDecodeError::UnexpectedEOF));
-    assert_eq!(BItem::parse(b"di1ei2ee"),
-               Err(BDecodeError::NonBytesKey));
-    assert_eq!(BItem::parse(b"d5:helloi1e"),
-               Err(BDecodeError::UnexpectedEOF));
-    assert_eq!(
-        BItem::parse(b"d5:helloi1e3:who5:worlde"),
-        Ok(BItem::Dictionary([
+    assert_encodes!(b"de", BItem::Dictionary(HashMap::new()));
+    assert_error!(b"d5:hello", BDecodeError::UnexpectedEOF);
+    assert_error!(b"di1ei2ee", BDecodeError::NonBytesKey);
+    assert_error!(b"d5:helloi1e", BDecodeError::UnexpectedEOF);
+    assert_encodes!(b"d5:helloi1e3:who5:worlde",
+        BItem::Dictionary([
             (v(b"hello"),
              BItem::Integer(1)),
             (v(b"who"),
              BItem::Bytestring(v(b"world")))
-            ].iter().cloned().collect())));
+            ].iter().cloned().collect()));
     assert!(BItem::parse_raw(b"d2:bbi4e2:aai4ee").is_ok());
-    assert_eq!(BItem::parse(b"d2:bbi4e2:aai4ee"),
-               Err(BDecodeError::OutOfOrderKey));
-    assert_eq!(BItem::parse(b"d2:aai4e2:aai4ee"),
-               Err(BDecodeError::DuplicatedKey));
+    assert_error!(b"d2:bbi4e2:aai4ee", BDecodeError::OutOfOrderKey);
+    assert_error!(b"d2:aai4e2:aai4ee", BDecodeError::DuplicatedKey);
 }
