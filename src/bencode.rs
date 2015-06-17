@@ -292,7 +292,7 @@ impl BItem {
 
     fn serialize_bytestring(bytes: &[u8], result: &mut Vec<u8>) {
         write!(result, "{}:", bytes.len()).unwrap();
-        result.extend(bytes);
+        result.extend(bytes.iter().cloned());
     }
 }
 
