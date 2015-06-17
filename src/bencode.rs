@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
+use std::io::Write;
 
 
 /// Simple utility function to build a Vec<u8> from a b"..." literal.
@@ -254,6 +255,44 @@ impl BItem {
         } else {
             Err(BDecodeError::ParseError)
         }
+    }
+
+    /// Write out bencoded object as a bytestring.
+    ///
+    /// Dictionaries are written with their keys in order.
+    pub fn serialize(&self) -> Vec<u8> {
+        let mut result = Vec::new();
+        self.serialize_internal(&mut result);
+        result
+    }
+
+    fn serialize_internal(&self, result: &mut Vec<u8>) {
+        match *self {
+            BItem::Integer(i) => write!(result, "i{}e", i).unwrap(),
+            BItem::Bytestring(ref v) => Self::serialize_bytestring(v, result),
+            BItem::List(ref v) => {
+                result.push(b'l');
+                for e in v {
+                    e.serialize_internal(result);
+                }
+                result.push(b'e');
+            },
+            BItem::Dictionary(ref m) => {
+                let mut l = m.iter().collect::<Vec<(&Vec<u8>, &BItem)>>();
+                l.sort_by(|&(k1, _), &(k2, _)| k1.cmp(k2));
+                result.push(b'd');
+                for (k, v) in l {
+                    Self::serialize_bytestring(k, result);
+                    v.serialize_internal(result);
+                }
+                result.push(b'e');
+            },
+        }
+    }
+
+    fn serialize_bytestring(bytes: &[u8], result: &mut Vec<u8>) {
+        write!(result, "{}:", bytes.len()).unwrap();
+        result.extend(bytes);
     }
 }
 
