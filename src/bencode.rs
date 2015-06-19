@@ -18,11 +18,6 @@ use self::vec_from_slice as v;
 
 
 /// Error decoding bencoded messages.
-///
-/// Note that dhstore's BNodes must have ordered keys, but this is not a
-/// requirement of the usual bencoding scheme. Therefore, OutOfOrderKey will
-/// not be returned by BItem::parse_raw(), only BItem::parse() (this is the
-/// only difference).
 #[derive(Debug, PartialEq, Eq)]
 pub enum BDecodeError {
     ParseError,
@@ -106,28 +101,10 @@ fn is_digit(b: u8) -> bool {
 const MAX_DEPTH: u32 = 32;
 
 impl BItem {
-    /// Parse a dhstore BNode as a tree of BItems.
-    ///
-    /// Note that BNodes are required to have their keys ordered in
-    /// dictionaries; use parse_raw() if parsing DHT messages where this
-    /// behavior is not expected.
-    pub fn parse(bencoded: &[u8]) -> Result<BItem, BDecodeError> {
-        Self::parse_internal(bencoded, false)
-    }
-
     /// Parse a bencoded message.
-    ///
-    /// Note that this doesn't check the ordering of keys in dictionaries
-    /// (BDecodeError::OutOfOrderKey will never be returned); use parse() if
-    /// parsing a dhstore BNode where this behavior is expected.
-    pub fn parse_raw(bencoded: &[u8]) -> Result<BItem, BDecodeError> {
-        Self::parse_internal(bencoded, true)
-    }
-
-    fn parse_internal(bencoded: &[u8], allow_out_of_order: bool)
-            -> Result<BItem, BDecodeError> {
+    pub fn parse(bencoded: &[u8]) -> Result<BItem, BDecodeError> {
         let (result, pos) = try!(
-            Self::parse_internal_r(bencoded, allow_out_of_order, 0));
+            Self::parse_internal_r(bencoded, 0));
         if pos == bencoded.len() {
             Ok(result)
         } else {
@@ -135,7 +112,7 @@ impl BItem {
         }
     }
 
-    fn parse_internal_r(bencoded: &[u8], allow_out_of_order: bool, depth: u32)
+    fn parse_internal_r(bencoded: &[u8], depth: u32)
             -> Result<(BItem, usize), BDecodeError> {
         if bencoded.len() < 2 {
             Err(BDecodeError::UnexpectedEOF)
@@ -181,7 +158,6 @@ impl BItem {
                 }
                 let (result, p) = try!(BItem::parse_internal_r(
                     &bencoded[pos..],
-                    allow_out_of_order,
                     depth + 1));
                 val.push(result);
                 pos += p;
@@ -201,7 +177,6 @@ impl BItem {
                 }
                 let (key_item, p) = try!(BItem::parse_internal_r(
                     &bencoded[pos..],
-                    allow_out_of_order,
                     depth + 1));
                 pos += p;
                 let key = match key_item {
@@ -211,14 +186,13 @@ impl BItem {
                 if let Some(ref oldkey) = last_key {
                     if oldkey == &key {
                         return Err(BDecodeError::DuplicatedKey);
-                    } else if !allow_out_of_order && oldkey > &key {
+                    } else if oldkey > &key {
                         return Err(BDecodeError::OutOfOrderKey);
                     }
                 }
                 last_key = Some(key.clone());
                 let (value, p) = try!(BItem::parse_internal_r(
                     &bencoded[pos..],
-                    allow_out_of_order,
                     depth + 1));
                 pos += p;
                 if val.insert(key, value).is_some() {
@@ -360,7 +334,6 @@ fn test_dictionary() {
             (v(b"who"),
              BItem::Bytestring(v(b"world")))
             ].iter().cloned().collect()));
-    assert!(BItem::parse_raw(b"d2:bbi4e2:aai4ee").is_ok());
     assert_error!(b"d2:bbi4e2:aai4ee", BDecodeError::OutOfOrderKey);
     assert_error!(b"d2:aai4e2:aai4ee", BDecodeError::DuplicatedKey);
 }
