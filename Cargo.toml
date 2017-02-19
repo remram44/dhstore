@@ -1,0 +1,8 @@
+[package]
+name = "dhstore"
+version = "0.0.1"
+authors = [ "Remi Rampin <remirampin@gmail.com>" ]
+repository = "https://github.com/remram44/dhstore"
+
+[dependencies]
+log = "0.3"
