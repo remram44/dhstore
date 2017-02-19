@@ -12,9 +12,7 @@ pub struct FileBlobStorage {
 
 impl FileBlobStorage {
     pub fn open<P: AsRef<Path>>(path: P) -> FileBlobStorage {
-        FileBlobStorage {
-            path: path.as_ref().to_path_buf(),
-        }
+        FileBlobStorage { path: path.as_ref().to_path_buf() }
     }
 
     fn filename(&self, id: &ID) -> PathBuf {
@@ -49,8 +47,11 @@ impl BlobStorage for FileBlobStorage {
     fn add_known_blob(&mut self, id: &ID, blob: &[u8]) {
         let path = self.filename(id);
         if !path.exists() {
-            let mut fp = OpenOptions::new().write(true).create_new(true)
-                .open(path).expect("Can't open new blob file");
+            let mut fp = OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(path)
+                .expect("Can't open new blob file");
             fp.write_all(blob).expect("Error writing blob file");
         }
     }
@@ -67,12 +68,13 @@ impl EnumerableBlobStorage for FileBlobStorage {
     type Iter = FileBlobIterator;
 
     fn list_blobs(&self) -> FileBlobIterator {
-        let mut first = self.path.read_dir()
+        let mut first = self.path
+            .read_dir()
             .expect("Blobs directory doesn't exist");
         FileBlobIterator {
             first: first,
             first_val: [0u8; 2],
-            second: None
+            second: None,
         }
     }
 }
@@ -89,8 +91,10 @@ impl Iterator for FileBlobIterator {
     fn next(&mut self) -> Option<ID> {
         if self.second.is_none() {
             if let Some(entry) = self.first.next() {
-                let entry = entry.expect("Error reading first-level entry in blobs");
-                let name = entry.file_name().into_string()
+                let entry =
+                    entry.expect("Error reading first-level entry in blobs");
+                let name = entry.file_name()
+                    .into_string()
                     .expect("First-level entry in blobs is invalid unicode");
                 let slice = name.as_bytes();
                 if slice.len() != 2 {
@@ -98,17 +102,20 @@ impl Iterator for FileBlobIterator {
                            slice.len());
                 }
                 self.first_val.clone_from_slice(slice);
-                self.second = Some(entry.path().read_dir()
+                self.second = Some(entry.path()
+                    .read_dir()
                     .expect("Error reading first-level entry in blobs"));
             } else {
                 return None;
             }
         }
         if let Some(entry) = self.second.as_mut().unwrap().next() {
-            let entry = entry.expect("Error reading second-level entry in blobs");
+            let entry =
+                entry.expect("Error reading second-level entry in blobs");
             let mut id = [0u8; 20];
             id[..2].clone_from_slice(&self.first_val);
-            let name = entry.file_name().into_string()
+            let name = entry.file_name()
+                .into_string()
                 .expect("Second-level entry in blobs is invalid unicode");
             let slice = name.as_bytes();
             if slice.len() != 18 {

@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::path::{Path};
+use std::path::Path;
 
 use common::{ID, Object, ObjectIndex};
 
@@ -10,8 +10,8 @@ pub enum PolicyDecision {
 }
 
 pub trait Policy {
-    fn handle(&mut self, property: &str, object: Object
-    ) -> (PolicyDecision, Policy);
+    fn handle(&mut self, property: &str, object: Object)
+              -> (PolicyDecision, Policy);
 }
 
 pub enum RefCount {

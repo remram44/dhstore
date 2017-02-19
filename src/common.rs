@@ -56,7 +56,7 @@ pub trait BlobStorage {
 }
 
 pub trait EnumerableBlobStorage: BlobStorage {
-    type Iter: Iterator<Item=ID>;
+    type Iter: Iterator<Item = ID>;
 
     fn list_blobs(&self) -> Self::Iter;
 }

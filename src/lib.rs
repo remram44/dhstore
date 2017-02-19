@@ -26,9 +26,8 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
     }
 }
 
-pub fn open<P: AsRef<std::path::Path>>(path: P) ->
-    Store<FileBlobStorage, MemoryIndex>
-{
+pub fn open<P: AsRef<std::path::Path>>(path: P)
+     -> Store<FileBlobStorage, MemoryIndex> {
     let path = path.as_ref();
 
     // Create a file blob storage, storing blobs as single files
