@@ -1,6 +1,6 @@
 language: rust
 rust:
-  - 1.0.0
+  - stable
   - nightly
 sudo: false
 script:
