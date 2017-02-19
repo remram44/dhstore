@@ -6,7 +6,7 @@ use std::hash::{Hash, Hasher};
 ///
 /// Because they are content-addressable, this is a hash of its content.
 pub struct ID {
-    bytes: [u8; 20],
+    pub bytes: [u8; 20],
 }
 
 /// Values that appear in an object's metadata.
@@ -51,10 +51,14 @@ pub enum PathComponent {
 pub trait BlobStorage {
     fn get_blob(&self, id: &ID) -> Option<Box<[u8]>>;
     fn add_blob(&mut self, blob: &[u8]) -> ID;
+    fn add_known_blob(&mut self, id: &ID, blob: &[u8]);
     fn delete_blob(&mut self, id: &ID);
 }
 
 pub trait EnumerableBlobStorage: BlobStorage {
+    type Iter: Iterator<Item=ID>;
+
+    fn list_blobs(&self) -> Self::Iter;
 }
 
 pub trait ObjectIndex {

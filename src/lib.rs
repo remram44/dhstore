@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate log;
+extern crate sha1;
 
 mod common;
 mod memory_indexer;

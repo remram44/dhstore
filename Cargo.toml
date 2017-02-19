@@ -6,3 +6,4 @@ repository = "https://github.com/remram44/dhstore"
 
 [dependencies]
 log = "0.3"
+sha1 = "0.2"
