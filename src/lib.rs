@@ -11,8 +11,8 @@ pub use common::{ID, Property, Object, Path, PathComponent, BlobStorage,
 pub use memory_index::MemoryIndex;
 pub use file_storage::FileBlobStorage;
 
-use std::fs::File;
-use std::io::Read;
+use std::fs::{File, OpenOptions};
+use std::io::{Read, Write};
 
 /// Main structure, representing the whole system.
 pub struct Store<S: BlobStorage, I: ObjectIndex> {
@@ -63,4 +63,39 @@ pub fn open<P: AsRef<::std::path::Path>>(path: P)
 
     // Create the Store object
     Store::new(storage, index, root_config)
+}
+
+pub fn create<P: AsRef<::std::path::Path>>(path: P) {
+    let path = path.as_ref();
+
+    // Create directory
+    if path.is_dir() {
+        if path.read_dir()
+            .expect("Couldn't list target directory")
+            .next().is_some() {
+            panic!("Target directory exists and is not empty");
+        }
+    } else if path.exists() {
+        panic!("Target exists and is not a directory");
+    } else {
+        ::std::fs::create_dir(path);
+    }
+
+    // Create blobs directory
+    ::std::fs::create_dir(path.join("blobs")).unwrap();
+
+    // Create objects directory
+    ::std::fs::create_dir(path.join("objects")).unwrap();
+
+    // Create root config
+    {
+        let mut fp = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path.join("root"))
+            .unwrap();
+        fp.write_all(b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\
+                       \x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13")
+            .unwrap();
+    }
 }
