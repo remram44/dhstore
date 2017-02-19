@@ -47,6 +47,13 @@ impl BlobStorage for FileBlobStorage {
     fn add_known_blob(&mut self, id: &ID, blob: &[u8]) {
         let path = self.filename(id);
         if !path.exists() {
+            {
+                let parent = path.parent().unwrap();
+                if !parent.exists() {
+                    ::std::fs::create_dir(parent)
+                        .expect("Couldn't create first-level blob directory");
+                }
+            }
             let mut fp = OpenOptions::new()
                 .write(true)
                 .create_new(true)
