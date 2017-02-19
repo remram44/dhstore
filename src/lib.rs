@@ -3,12 +3,12 @@ extern crate log;
 extern crate sha1;
 
 mod common;
-mod memory_indexer;
+mod memory_index;
 mod file_storage;
 
 pub use common::{ID, Property, Object, Path, PathComponent, BlobStorage,
                  EnumerableBlobStorage, ObjectIndex};
-pub use memory_indexer::MemoryIndex;
+pub use memory_index::MemoryIndex;
 pub use file_storage::FileBlobStorage;
 
 /// Main structure, representing the whole system.
