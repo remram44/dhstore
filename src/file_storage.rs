@@ -28,9 +28,9 @@ impl BlobStorage for FileBlobStorage {
         let path = self.filename(id);
         if path.exists() {
             let mut fp = File::open(path).expect("Can't open blob file");
-            let mut vec = Vec::new();
-            fp.read_to_end(&mut vec).expect("Error reading blob file");
-            Some(vec.into_boxed_slice())
+            let mut buf = Vec::new();
+            fp.read_to_end(&mut buf).expect("Error reading blob file");
+            Some(buf.into_boxed_slice())
         } else {
             None
         }
