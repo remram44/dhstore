@@ -13,7 +13,7 @@ impl Display for Error {
            -> ::std::result::Result<(), ::std::fmt::Error> {
         match *self {
             Error::IoError(ref msg, ref err) => {
-                write!(f, "I/O error: {}", msg)?;
+                write!(f, "I/O error: {}\n", msg)?;
                 err.fmt(f)
             }
             Error::CorruptedStore(ref msg) => {

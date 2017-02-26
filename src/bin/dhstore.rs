@@ -10,6 +10,7 @@ use dhstore::log::init;
 
 use clap::{App, Arg, SubCommand};
 use log::LogLevel;
+use std::process;
 
 fn main() {
     let verbose = &Arg::with_name("verbose")
@@ -32,6 +33,11 @@ fn main() {
                     .about("Creates a new store")
                     .arg(verbose)
                     .args(store_args))
+        .subcommand(SubCommand::with_name("verify")
+                    .about("Verifies the store (checks for invalid values and \
+                            garbage collects)")
+                    .arg(verbose)
+                    .args(store_args))
         .get_matches();
 
     let mut level = matches.occurrences_of("verbose");
@@ -46,5 +52,32 @@ fn main() {
     };
     init(level).unwrap();
 
-    let store = dhstore::open("store");
+    match matches.subcommand() {
+        (_, None) => {
+            error!("No command specified.");
+            process::exit(1);
+        }
+        (command, Some(matches)) => {
+            if let Err(e) = run_command(command, matches) {
+                error!("{}", e);
+                process::exit(1);
+            }
+        }
+    }
+}
+
+fn run_command(command: &str, matches: &clap::ArgMatches)
+        -> dhstore::errors::Result<()> {
+    match command {
+        "init" => {
+            let path = matches.value_of_os("store").unwrap_or(".".as_ref());
+            dhstore::create(path)
+        }
+        "verify" => {
+            unimplemented!()
+        }
+        _ => {
+            panic!("Missing code for command {}", command)
+        }
+    }
 }
