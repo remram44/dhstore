@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 
+use errors;
+
 /// Identifier for an object.
 ///
 /// Because they are content-addressable, this is a hash of its content.
@@ -49,16 +51,16 @@ pub enum PathComponent {
 }
 
 pub trait BlobStorage {
-    fn get_blob(&self, id: &ID) -> Option<Box<[u8]>>;
-    fn add_blob(&mut self, blob: &[u8]) -> ID;
-    fn add_known_blob(&mut self, id: &ID, blob: &[u8]);
-    fn delete_blob(&mut self, id: &ID);
+    fn get_blob(&self, id: &ID) -> errors::Result<Option<Box<[u8]>>>;
+    fn add_blob(&mut self, blob: &[u8]) -> errors::Result<ID>;
+    fn add_known_blob(&mut self, id: &ID, blob: &[u8]) -> errors::Result<()>;
+    fn delete_blob(&mut self, id: &ID) -> errors::Result<()>;
 }
 
 pub trait EnumerableBlobStorage: BlobStorage {
-    type Iter: Iterator<Item = ID>;
+    type Iter: Iterator<Item = errors::Result<ID>>;
 
-    fn list_blobs(&self) -> Self::Iter;
+    fn list_blobs(&self) -> errors::Result<Self::Iter>;
 }
 
 pub trait ObjectIndex {

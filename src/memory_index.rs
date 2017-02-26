@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
 
 use common::{ID, Object, ObjectIndex};
+use errors::{self, Error};
 
 pub enum PolicyDecision {
     Get,
@@ -51,7 +52,7 @@ impl MemoryIndex {
         }
     }
 
-    pub fn open<P: AsRef<Path>>(path: P) -> MemoryIndex {
+    pub fn open<P: AsRef<Path>>(path: P) -> errors::Result<MemoryIndex> {
         unimplemented!()
     }
 }
