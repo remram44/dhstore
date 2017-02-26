@@ -11,3 +11,4 @@ doc = false
 [dependencies]
 log = "0.3"
 sha1 = "0.2"
+termcolor = "0.3"

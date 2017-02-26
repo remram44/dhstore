@@ -1,10 +1,12 @@
 #[macro_use]
-extern crate log;
+extern crate log as log_crate;
 extern crate sha1;
+extern crate termcolor;
 
 mod common;
 mod memory_index;
 mod file_storage;
+pub mod log;
 
 pub use common::{ID, Property, Object, Path, PathComponent, BlobStorage,
                  EnumerableBlobStorage, ObjectIndex};
