@@ -9,6 +9,7 @@ name = "dhstore"
 doc = false
 
 [dependencies]
+clap = "2.20"
 log = "0.3"
 sha1 = "0.2"
 termcolor = "0.3"
