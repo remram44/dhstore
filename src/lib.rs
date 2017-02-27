@@ -6,6 +6,7 @@ extern crate termcolor;
 mod common;
 pub mod errors;
 mod file_storage;
+pub mod hash;
 pub mod log;
 mod memory_index;
 
@@ -58,12 +59,8 @@ pub fn open<P: AsRef<::std::path::Path>>(path: P)
         let mut buf = Vec::new();
         fp.read_to_end(&mut buf)
             .map_err(|e| ("Error reading root config file", e))?;
-        if buf.len() != 20 {
-            return Err(Error::CorruptedStore("Invalid root config file"));
-        }
-        let mut bytes = [0u8; 20];
-        bytes.clone_from_slice(&buf);
-        ID { bytes: bytes }
+        ID::from_slice(&buf)
+            .ok_or(Error::CorruptedStore("Invalid root config file"))?
     };
 
     // Create the Store object

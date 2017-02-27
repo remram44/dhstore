@@ -3,13 +3,7 @@ use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 
 use errors;
-
-/// Identifier for an object.
-///
-/// Because they are content-addressable, this is a hash of its content.
-pub struct ID {
-    pub bytes: [u8; 20],
-}
+pub use hash::ID;
 
 /// Values that appear in an object's metadata.
 ///

@@ -2,10 +2,9 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-use sha1::Sha1;
-
 use common::{ID, EnumerableBlobStorage, BlobStorage};
 use errors::{self, Error};
+use hash::Hasher;
 
 pub struct FileBlobStorage {
     path: PathBuf,
@@ -40,9 +39,9 @@ impl BlobStorage for FileBlobStorage {
     }
 
     fn add_blob(&mut self, blob: &[u8]) -> errors::Result<ID> {
-        let mut sha1 = Sha1::new();
-        sha1.update(blob);
-        let id = ID { bytes: sha1.digest().bytes() };
+        let mut hasher = Hasher::new();
+        hasher.update(blob);
+        let id = hasher.result();
         self.add_known_blob(&id, blob)?;
         Ok(id)
     }
