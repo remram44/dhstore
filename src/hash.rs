@@ -1,16 +1,16 @@
-use sha1::Sha1;
+use sha2::{Digest, Sha256};
 
 /// Identifier for an object.
 ///
 /// Because they are content-addressable, this is a hash of its content.
 pub struct ID {
-    pub bytes: [u8; 20],
+    pub bytes: [u8; 32],
 }
 
 impl ID {
     pub fn from_slice(buf: &[u8]) -> Option<ID> {
-        if buf.len() == 20 {
-            let mut bytes = [0u8; 20];
+        if buf.len() == 32 {
+            let mut bytes = [0u8; 32];
             bytes.clone_from_slice(buf);
             Some(ID { bytes: bytes })
         } else {
@@ -19,7 +19,7 @@ impl ID {
     }
 
     pub fn hash_size() -> usize {
-        20
+        32
     }
 }
 
@@ -28,19 +28,21 @@ impl ID {
 /// Abstracted to make it easier to swap it out, or use multiple hashes,
 /// but there is no current plan to make the lib generic on this.
 pub struct Hasher {
-    hasher: Sha1,
+    hasher: Sha256,
 }
 
 impl Hasher {
     pub fn new() -> Hasher {
-        Hasher { hasher: Sha1::new() }
+        Hasher { hasher: Sha256::new() }
     }
 
     pub fn update(&mut self, msg: &[u8]) {
-        self.hasher.update(msg);
+        self.hasher.input(msg);
     }
 
     pub fn result(self) -> ID {
-        ID { bytes: self.hasher.digest().bytes() }
+        let mut bytes = [0u8; 32];
+        bytes.copy_from_slice(self.hasher.result().as_slice());
+        ID { bytes: bytes }
     }
 }

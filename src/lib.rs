@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate log as log_crate;
-extern crate sha1;
+extern crate sha2;
 extern crate termcolor;
 
 mod common;

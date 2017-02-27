@@ -131,13 +131,13 @@ impl Iterator for FileBlobIterator {
         if let Some(entry) = self.second.as_mut().unwrap().next() {
             let entry =
                 entry.expect("Error reading second-level entry in blobs");
-            let mut id = [0u8; 20];
+            let mut id = [0u8; 32];
             id[..2].clone_from_slice(&self.first_val);
             let name = entry.file_name()
                 .into_string()
                 .expect("Second-level entry in blobs is invalid unicode");
             let slice = name.as_bytes();
-            if slice.len() != 18 {
+            if slice.len() != 30 {
                 panic!("Second-level entry has invalid length {}",
                        slice.len());
             }
