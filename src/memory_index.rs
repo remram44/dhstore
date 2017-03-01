@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
 
 use common::{ID, Object, ObjectIndex};
-use errors::{self, Error};
+use errors;
 
 pub enum PolicyDecision {
     Get,
@@ -12,7 +12,22 @@ pub enum PolicyDecision {
 
 pub trait Policy {
     fn handle(&mut self, property: &str, object: Object)
-              -> (PolicyDecision, Policy);
+              -> (PolicyDecision, Box<Policy>);
+}
+
+struct PolicyV1;
+
+impl PolicyV1 {
+    fn new() -> PolicyV1 {
+        PolicyV1
+    }
+}
+
+impl Policy for PolicyV1 {
+    fn handle(&mut self, property: &str, object: Object)
+              -> (PolicyDecision, Box<Policy>) {
+        unimplemented!()
+      }
 }
 
 pub enum RefCount {
@@ -53,7 +68,12 @@ impl MemoryIndex {
     }
 
     pub fn open<P: AsRef<Path>>(path: P) -> errors::Result<MemoryIndex> {
-        unimplemented!()
+        Ok(MemoryIndex {
+            objects: HashMap::new(),
+            properties: HashMap::new(),
+            roots: HashSet::new(),
+            policy: Box::new(PolicyV1::new()),
+        })
     }
 }
 
