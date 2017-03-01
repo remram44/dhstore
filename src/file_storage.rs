@@ -17,8 +17,9 @@ impl FileBlobStorage {
 
     fn filename(&self, id: &ID) -> PathBuf {
         let mut path = self.path.to_path_buf();
-        path.push(::std::str::from_utf8(&id.bytes[..2]).unwrap());
-        path.push(::std::str::from_utf8(&id.bytes[2..]).unwrap());
+        let hex = id.hex();
+        path.push(&hex[..2]);
+        path.push(&hex[2..]);
         path
     }
 }

@@ -24,6 +24,14 @@ impl ID {
     pub fn hash_size() -> usize {
         32
     }
+
+    pub fn hex(&self) -> String {
+        let mut hex = Vec::with_capacity(Self::hash_size() * 2);
+        for byte in &self.bytes {
+            write!(&mut hex, "{:02x}", byte).unwrap();
+        }
+        unsafe { String::from_utf8_unchecked(hex) }
+    }
 }
 
 impl Eq for ID {}
