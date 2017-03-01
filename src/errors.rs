@@ -33,9 +33,7 @@ impl ::std::error::Error for Error {
 
     fn cause(&self) -> Option<&::std::error::Error> {
         match *self {
-            Error::IoError(_, ref o_error) => {
-                Some(o_error)
-            }
+            Error::IoError(_, ref o_error) => Some(o_error),
             _ => None,
         }
     }

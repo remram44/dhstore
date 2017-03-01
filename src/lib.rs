@@ -38,6 +38,13 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
     pub fn add_blob<R: Read>(&mut self, blob: R) -> errors::Result<ID> {
         self.storage.copy_blob(blob)
     }
+
+    pub fn verify(&mut self) -> errors::Result<()> {
+        info!("Verifying objects...");
+        self.index.verify()?;
+        info!("Verifying blobs...");
+        self.storage.verify()
+    }
 }
 
 pub fn open<P: AsRef<::std::path::Path>>(path: P)

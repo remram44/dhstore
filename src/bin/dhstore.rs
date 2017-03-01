@@ -101,10 +101,9 @@ fn run_command(command: &str, matches: &clap::ArgMatches)
             Ok(())
         }
         "verify" => {
-            unimplemented!()
+            let mut store = get_store()?;
+            store.verify()
         }
-        _ => {
-            panic!("Missing code for command {}", command)
-        }
+        _ => panic!("Missing code for command {}", command),
     }
 }

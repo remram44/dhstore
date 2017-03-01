@@ -13,8 +13,7 @@ struct StderrLogger {
 impl StderrLogger {
     fn new(level: LogLevel) -> StderrLogger {
         StderrLogger {
-            stderr: Mutex::new(
-                StandardStream::stdout(ColorChoice::Auto)),
+            stderr: Mutex::new(StandardStream::stdout(ColorChoice::Auto)),
             level: level,
         }
     }
@@ -36,8 +35,7 @@ impl Log for StderrLogger {
                 LogLevel::Trace => Color::Blue,
             };
             stderr.set_color(&ColorSpec::new().set_fg(Some(color))).unwrap();
-            writeln!(stderr,
-                     "{} - {}", record.target(), record.args())
+            writeln!(stderr, "{} - {}", record.target(), record.args())
                 .unwrap();
             stderr.reset().unwrap();
             stderr.flush().unwrap();

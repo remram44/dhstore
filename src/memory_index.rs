@@ -27,7 +27,7 @@ impl Policy for PolicyV1 {
     fn handle(&mut self, property: &str, object: Object)
               -> (PolicyDecision, Box<Policy>) {
         unimplemented!()
-      }
+    }
 }
 
 pub enum RefCount {
@@ -78,4 +78,8 @@ impl MemoryIndex {
 }
 
 impl ObjectIndex for MemoryIndex {
+    fn verify(&mut self) -> errors::Result<()> {
+        // TODO
+        Ok(())
+    }
 }

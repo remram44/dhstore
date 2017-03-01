@@ -150,6 +150,31 @@ impl BlobStorage for FileBlobStorage {
         }
         Ok(())
     }
+
+    fn verify(&mut self) -> errors::Result<()> {
+        for blob in self.list_blobs()? {
+            match blob {
+                Err(e) => error!("Error listing blobs: {}", e),
+                Ok(id) => {
+                    let mut hasher = Hasher::new();
+                    match self.get_blob(&id) {
+                        Err(e) => error!("Error getting blob: {}", e),
+                        Ok(None) => error!("Error gettting blob"),
+                        Ok(Some(blob)) => {
+                            hasher.update(&blob);
+                            if id != hasher.result() {
+                                warn!("Blob has the wrong hash: {:?}",
+                                      self.filename(&id));
+                            } else {
+                                info!("Checked {}", id);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 impl EnumerableBlobStorage for FileBlobStorage {
