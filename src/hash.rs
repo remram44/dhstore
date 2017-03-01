@@ -32,6 +32,33 @@ impl ID {
         }
         unsafe { String::from_utf8_unchecked(hex) }
     }
+
+    pub fn from_hex(hex: &[u8]) -> Option<ID> {
+        if hex.len() != Self::hash_size() * 2 {
+            return None;
+        }
+        let mut modulus = 0;
+        let mut buf = 0u8;
+        let mut out = [0u8; 32];
+        for (i, byte) in hex.iter().cloned().enumerate() {
+            buf <<= 4;
+
+            match byte {
+                b'0'...b'9' => buf |= byte - b'0',
+                b'a'...b'f' => buf |= byte - b'a' + 10,
+                // Also accept uppercase, though we don't write it
+                b'A'...b'F' => buf |= byte - b'A' + 10,
+                _ => return None,
+            }
+
+            modulus += 1;
+            if modulus == 2 {
+                modulus = 0;
+                out[i / 2] = buf;
+            }
+        }
+        Some(ID { bytes: out })
+    }
 }
 
 impl Eq for ID {}

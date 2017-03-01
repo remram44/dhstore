@@ -8,24 +8,6 @@ use common::{ID, EnumerableBlobStorage, BlobStorage};
 use errors::{self, Error};
 use hash::Hasher;
 
-pub struct FileBlobStorage {
-    path: PathBuf,
-}
-
-impl FileBlobStorage {
-    pub fn open<P: AsRef<Path>>(path: P) -> FileBlobStorage {
-        FileBlobStorage { path: path.as_ref().to_path_buf() }
-    }
-
-    fn filename(&self, id: &ID) -> PathBuf {
-        let mut path = self.path.to_path_buf();
-        let hex = id.hex();
-        path.push(&hex[..2]);
-        path.push(&hex[2..]);
-        path
-    }
-}
-
 struct TmpFile {
     path: Option<PathBuf>,
 }
@@ -60,6 +42,24 @@ impl Drop for TmpFile {
 impl fmt::Debug for TmpFile {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         self.path.fmt(f)
+    }
+}
+
+pub struct FileBlobStorage {
+    path: PathBuf,
+}
+
+impl FileBlobStorage {
+    pub fn open<P: AsRef<Path>>(path: P) -> FileBlobStorage {
+        FileBlobStorage { path: path.as_ref().to_path_buf() }
+    }
+
+    fn filename(&self, id: &ID) -> PathBuf {
+        let mut path = self.path.to_path_buf();
+        let hex = id.hex();
+        path.push(&hex[..2]);
+        path.push(&hex[2..]);
+        path
     }
 }
 
@@ -182,43 +182,60 @@ impl Iterator for FileBlobIterator {
                 let entry = match entry {
                     Ok(v) => v,
                     Err(e) => {
-                        return Some(Err(Error::IoError("Error reading blobs directory", e)));
+                        return Some(Err(Error::IoError(
+                            "Error reading blobs directory",
+                            e)));
                     }
                 };
                 let name = match entry.file_name().into_string() {
                     Ok(v) => v,
                     Err(_) => {
-                        return Some(Err(Error::CorruptedStore("First-level entry in blobs is invalid unicode")));
+                        return Some(Err(Error::CorruptedStore(
+                            "First-level entry in blobs is invalid unicode")));
                     }
                 };
                 let slice = name.as_bytes();
                 if slice.len() != 2 {
-                    panic!("First-level entry has invalid length {}",
-                           slice.len());
+                    return Some(Err(Error::CorruptedStore(
+                        "First-level entry has invalid length")));
                 }
                 self.first_val.clone_from_slice(slice);
-                self.second = Some(entry.path()
-                    .read_dir()
-                    .expect("Error reading first-level entry in blobs"));
+                match entry.path().read_dir() {
+                    Err(e) => {
+                        return Some(Err(Error::IoError(
+                            "Error reading subdirectory in blobs",
+                            e)));
+                    }
+                    Ok(entry) => self.second = Some(entry),
+                }
             } else {
                 return None;
             }
         }
         if let Some(entry) = self.second.as_mut().unwrap().next() {
-            let entry =
-                entry.expect("Error reading second-level entry in blobs");
-            let mut id = [0u8; 32];
+            if let Err(e) = entry {
+                return Some(Err(Error::IoError(
+                    "Error reading subdirectory in blobs",
+                    e)));
+            }
+            let entry = entry.unwrap();
+            let mut id = [0u8; 64];
             id[..2].clone_from_slice(&self.first_val);
             let name = entry.file_name()
-                .into_string()
-                .expect("Second-level entry in blobs is invalid unicode");
+                .into_string();
+            if let Err(_) = name {
+                return Some(Err(Error::CorruptedStore(
+                    "Second-level entry in blobs is invalid unicode")));
+            }
+            let name = name.unwrap();
             let slice = name.as_bytes();
-            if slice.len() != 30 {
-                panic!("Second-level entry has invalid length {}",
-                       slice.len());
+            if slice.len() != 62 {
+                return Some(Err(Error::CorruptedStore(
+                    "Second-level entry has invalid length")));
             }
             id[2..].clone_from_slice(slice);
-            Some(Ok(ID { bytes: id }))
+            Some(ID::from_hex(&id)
+                 .ok_or(Error::CorruptedStore("Path is not a valid ID")))
         } else {
             self.second = None;
             self.next()
