@@ -1,4 +1,7 @@
 use sha2::{Digest, Sha256};
+use std::fmt;
+use std::io::Write;
+use std::hash;
 
 /// Identifier for an object.
 ///
@@ -20,6 +23,23 @@ impl ID {
 
     pub fn hash_size() -> usize {
         32
+    }
+}
+
+impl Eq for ID {}
+
+impl hash::Hash for ID {
+    fn hash<H: hash::Hasher>(&self, state: &mut H) {
+        self.bytes.hash(state);
+    }
+}
+
+impl fmt::Display for ID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        for byte in &self.bytes {
+            write!(f, "{:02x}", byte)?;
+        }
+        Ok(())
     }
 }
 

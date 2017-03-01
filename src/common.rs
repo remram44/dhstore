@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
-use std::hash::{Hash, Hasher};
 
 use errors;
 pub use hash::ID;
@@ -68,22 +66,5 @@ pub trait Cursor {
 impl PartialEq for ID {
     fn eq(&self, other: &ID) -> bool {
         self.bytes == other.bytes
-    }
-}
-
-impl Eq for ID {}
-
-impl Hash for ID {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.bytes.hash(state);
-    }
-}
-
-impl Display for ID {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), ::std::fmt::Error> {
-        for byte in self.bytes.iter() {
-            write!(f, "{:020x}", byte)?;
-        }
-        Ok(())
     }
 }
