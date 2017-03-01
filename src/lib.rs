@@ -16,7 +16,7 @@ use errors::Error;
 pub use memory_index::MemoryIndex;
 pub use file_storage::FileBlobStorage;
 
-use std::fs::{File, OpenOptions};
+use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 
 /// Main structure, representing the whole system.
@@ -39,6 +39,8 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
 pub fn open<P: AsRef<::std::path::Path>>(path: P)
      -> errors::Result<Store<FileBlobStorage, MemoryIndex>> {
     let path = path.as_ref();
+
+    fs::metadata(path).map_err(|e| ("Store path doesn't exist", e))?;
 
     // Create a file blob storage, storing blobs as single files
     let storage = {
@@ -101,8 +103,11 @@ pub fn create<P: AsRef<::std::path::Path>>(path: P) -> errors::Result<()> {
             .create_new(true)
             .open(path.join("root"))
             .map_err(|e| ("Couldn't open root config", e))?;
-        fp.write_all(b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\
-                       \x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13")
+        // TODO
+        fp.write_all(b"\x00\x01\x02\x03\x04\x05\x06\x07\
+                       \x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\
+                       \x10\x11\x12\x13\x14\x15\x16\x17\
+                       \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f")
             .map_err(|e| ("Couldn't write root config", e))?;
     }
 
