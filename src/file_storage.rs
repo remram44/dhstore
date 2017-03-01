@@ -1,5 +1,7 @@
+use std::env::temp_dir;
+use std::fmt;
 use std::fs::{self, File, OpenOptions};
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
 use common::{ID, EnumerableBlobStorage, BlobStorage};
@@ -21,6 +23,43 @@ impl FileBlobStorage {
         path.push(&hex[..2]);
         path.push(&hex[2..]);
         path
+    }
+}
+
+struct TmpFile {
+    path: Option<PathBuf>,
+}
+
+impl TmpFile {
+    fn new() -> TmpFile {
+        // TODO: Use random suffix
+        TmpFile { path: Some(temp_dir().join("dhstore_tmp")) }
+    }
+
+    fn open(&self, opts: &OpenOptions) -> io::Result<File> {
+        opts.open(self.path.as_ref().unwrap())
+    }
+
+    fn rename<P: AsRef<Path>>(mut self, destination: P) -> io::Result<()> {
+        let res = fs::rename(self.path.as_ref().unwrap(), destination);
+        self.path = None;
+        res
+    }
+}
+
+impl Drop for TmpFile {
+    fn drop(&mut self) {
+        if let Some(ref path) = self.path {
+            if let Err(e) = fs::remove_file(path) {
+                warn!("Couldn't remove {:?}: {}", path, e);
+            }
+        }
+    }
+}
+
+impl fmt::Debug for TmpFile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        self.path.fmt(f)
     }
 }
 
@@ -65,6 +104,42 @@ impl BlobStorage for FileBlobStorage {
             fp.write_all(blob).map_err(|e| ("Error writing blob file", e))?;
         }
         Ok(())
+    }
+
+    fn copy_blob<R: Read>(&mut self, mut blob: R) -> errors::Result<ID> {
+        let tmpfile = TmpFile::new();
+        let id = {
+            let mut hasher = Hasher::new();
+            let mut buf = [0u8; 4096];
+            let mut fp = tmpfile.open(OpenOptions::new()
+                .write(true).truncate(true).create(true))
+                .map_err(|e| ("Can't open temporary file", e))?;
+            let mut size = blob.read(&mut buf)
+                .map_err(|e| ("Error reading input", e))?;
+            while size > 0 {
+                hasher.update(&buf[..size]);
+                fp.write_all(&buf[..size])
+                    .map_err(|e| ("Error writing to temporary file", e))?;
+                size = blob.read(&mut buf)
+                    .map_err(|e| ("Error reading input", e))?;
+            }
+            hasher.result()
+        };
+
+        let path = self.filename(&id);
+        if !path.exists() {
+            {
+                let parent = path.parent().unwrap();
+                if !parent.exists() {
+                    fs::create_dir(parent)
+                        .map_err(|e| ("Couldn't create blob directory", e))?;
+                }
+            }
+            tmpfile.rename(path)
+                .map_err(|e| ("Couldn't move temporary file to storage", e))?;
+        }
+
+        Ok(id)
     }
 
     fn delete_blob(&mut self, id: &ID) -> errors::Result<()> {

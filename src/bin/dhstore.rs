@@ -10,6 +10,8 @@ use dhstore::log::init;
 
 use clap::{App, Arg, SubCommand};
 use log::LogLevel;
+use std::fs::File;
+use std::io;
 use std::process;
 
 fn main() {
@@ -38,6 +40,13 @@ fn main() {
                             garbage collects)")
                     .arg(verbose)
                     .args(store_args))
+        .subcommand(SubCommand::with_name("add_blob")
+                    .about("Add a blob from a file or stdin")
+                    .arg(verbose)
+                    .args(store_args)
+                    .arg(Arg::with_name("INPUT")
+                         .required(true)
+                         .help("Input file or \"-\" for stdin")))
         .get_matches();
 
     let mut level = matches.occurrences_of("verbose");
@@ -68,10 +77,28 @@ fn main() {
 
 fn run_command(command: &str, matches: &clap::ArgMatches)
         -> dhstore::errors::Result<()> {
+    let get_store = ||
+            -> dhstore::errors::Result<dhstore::Store<dhstore::FileBlobStorage,
+                                       dhstore::MemoryIndex>> {
+        dhstore::open(matches.value_of_os("store").unwrap_or(".".as_ref()))
+    };
     match command {
         "init" => {
             let path = matches.value_of_os("store").unwrap_or(".".as_ref());
             dhstore::create(path)
+        }
+        "add_blob" => {
+            let mut store = get_store()?;
+            let file = matches.value_of_os("INPUT").unwrap();
+            let id = if file == "-" {
+                store.add_blob(io::stdin())
+            } else {
+                let fp = File::open(file)
+                    .map_err(|e| ("Cannot open file for reading", e))?;
+                store.add_blob(fp)
+            }?;
+            println!("{}", id);
+            Ok(())
         }
         "verify" => {
             unimplemented!()

@@ -34,6 +34,10 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
             root_config: root_config,
         }
     }
+
+    pub fn add_blob<R: Read>(&mut self, blob: R) -> errors::Result<ID> {
+        self.storage.copy_blob(blob)
+    }
 }
 
 pub fn open<P: AsRef<::std::path::Path>>(path: P)
