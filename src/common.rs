@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::io::Read;
 
 use errors;
@@ -17,7 +17,7 @@ pub enum Property {
 /// A schema object, i.e. a dictionary of properties.
 pub struct Object {
     pub id: ID,
-    pub properties: HashMap<String, Property>,
+    pub properties: BTreeMap<String, Property>,
 }
 
 pub struct Query {

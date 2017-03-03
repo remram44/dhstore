@@ -9,6 +9,7 @@ mod file_storage;
 pub mod hash;
 pub mod log;
 mod memory_index;
+mod serialize;
 
 pub use common::{ID, Property, Object, Path, PathComponent, BlobStorage,
                  EnumerableBlobStorage, ObjectIndex};
