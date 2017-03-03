@@ -59,7 +59,7 @@ pub trait EnumerableBlobStorage: BlobStorage {
 }
 
 pub trait ObjectIndex {
-    fn verify(&mut self) -> errors::Result<()>;
+    fn verify(&mut self, collect: bool) -> errors::Result<()>;
 }
 
 pub trait Cursor {

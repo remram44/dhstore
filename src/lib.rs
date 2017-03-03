@@ -23,15 +23,13 @@ use std::io::{Read, Write};
 pub struct Store<S: BlobStorage, I: ObjectIndex> {
     storage: S,
     index: I,
-    root_config: ID,
 }
 
 impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
-    pub fn new(storage: S, index: I, root_config: ID) -> Store<S, I> {
+    pub fn new(storage: S, index: I) -> Store<S, I> {
         Store {
             storage: storage,
             index: index,
-            root_config: root_config,
         }
     }
 
@@ -41,28 +39,18 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
 
     pub fn verify(&mut self) -> errors::Result<()> {
         info!("Verifying objects...");
-        self.index.verify()?;
+        self.index.verify(false)?;
         info!("Verifying blobs...");
         self.storage.verify()
     }
 }
 
 pub fn open<P: AsRef<::std::path::Path>>(path: P)
-     -> errors::Result<Store<FileBlobStorage, MemoryIndex>> {
+    -> errors::Result<Store<FileBlobStorage, MemoryIndex>>
+{
     let path = path.as_ref();
 
     fs::metadata(path).map_err(|e| ("Store path doesn't exist", e))?;
-
-    // Create a file blob storage, storing blobs as single files
-    let storage = {
-        FileBlobStorage::open(path.join("blobs"))
-    };
-
-    // Create a memory index, that stores all the objects in memory, and
-    // has to load all of them everytime from simple files
-    let index = {
-        MemoryIndex::open(path.join("objects"))?
-    };
 
     // Get the ID of the root config -- the configuration is loaded from the
     // index itself but we need a trust anchor
@@ -76,8 +64,19 @@ pub fn open<P: AsRef<::std::path::Path>>(path: P)
             .ok_or(Error::CorruptedStore("Invalid root config file"))?
     };
 
+    // Create a file blob storage, storing blobs as single files
+    let storage = {
+        FileBlobStorage::open(path.join("blobs"))
+    };
+
+    // Create a memory index, that stores all the objects in memory, and
+    // has to load all of them everytime from simple files
+    let index = {
+        MemoryIndex::open(path.join("objects"), root_config)?
+    };
+
     // Create the Store object
-    Ok(Store::new(storage, index, root_config))
+    Ok(Store::new(storage, index))
 }
 
 pub fn create<P: AsRef<::std::path::Path>>(path: P) -> errors::Result<()> {

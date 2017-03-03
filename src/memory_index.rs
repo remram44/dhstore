@@ -43,43 +43,39 @@ pub struct RefCountedObject {
 pub struct MemoryIndex {
     objects: HashMap<ID, RefCountedObject>,
     properties: HashMap<String, HashSet<RefCountedObject>>,
-    roots: HashSet<ID>,
+    root: ID,
     policy: Box<Policy>,
 }
 
 impl MemoryIndex {
-    pub fn collect_garbage(&mut self) {
-        let mut alive = HashSet::new(); // ids
-        let mut open = self.roots.iter() // objects
-            .filter_map(|id| {
-                let obj = self.objects.get(id);
-                if obj.is_none() {
-                    warn!("Root is missing: {}", id);
-                }
-                obj
-            })
-            .collect::<VecDeque<_>>();
-        while let Some(object) = open.pop_back() {
-            let id = &object.object.id;
-            if !alive.contains(id) {
-                alive.insert(id);
-            }
-        }
-    }
-
-    pub fn open<P: AsRef<Path>>(path: P) -> errors::Result<MemoryIndex> {
+    pub fn open<P: AsRef<Path>>(path: P, root: ID)
+        -> errors::Result<MemoryIndex>
+    {
         Ok(MemoryIndex {
             objects: HashMap::new(),
             properties: HashMap::new(),
-            roots: HashSet::new(),
+            root: root,
             policy: Box::new(PolicyV1::new()),
         })
     }
 }
 
 impl ObjectIndex for MemoryIndex {
-    fn verify(&mut self) -> errors::Result<()> {
-        // TODO
+    fn verify(&mut self, collect: bool) -> errors::Result<()> {
+        let mut alive = HashSet::new(); // ids
+        let mut open = VecDeque::new(); // objects
+        match self.objects.get(&self.root) {
+            None => error!("Root is missing: {}", self.root),
+            Some(obj) => open.push_front(obj),
+        }
+        while let Some(object) = open.pop_back() {
+            let id = &object.object.id;
+            debug!("Walking, open={}, alive={}/{}, id={}",
+                   open.len(), alive.len(), self.objects.len(), id);
+            if !alive.contains(id) {
+                alive.insert(id);
+            }
+        }
         Ok(())
     }
 }
