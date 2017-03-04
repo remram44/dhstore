@@ -1,6 +1,6 @@
 use sha2::{Digest, Sha256};
 use std::fmt;
-use std::io::Write;
+use std::io::{self, Write};
 use std::hash;
 
 /// Identifier for an object.
@@ -91,13 +91,20 @@ impl Hasher {
         Hasher { hasher: Sha256::new() }
     }
 
-    pub fn update(&mut self, msg: &[u8]) {
-        self.hasher.input(msg);
-    }
-
     pub fn result(self) -> ID {
         let mut bytes = [0u8; 32];
         bytes.copy_from_slice(self.hasher.result().as_slice());
         ID { bytes: bytes }
+    }
+}
+
+impl Write for Hasher {
+    fn write(&mut self, msg: &[u8]) -> io::Result<usize> {
+        self.hasher.input(msg);
+        Ok(msg.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
     }
 }

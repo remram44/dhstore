@@ -80,7 +80,7 @@ impl BlobStorage for FileBlobStorage {
 
     fn add_blob(&mut self, blob: &[u8]) -> errors::Result<ID> {
         let mut hasher = Hasher::new();
-        hasher.update(blob);
+        hasher.write_all(blob).unwrap();
         let id = hasher.result();
         self.add_known_blob(&id, blob)?;
         Ok(id)
@@ -117,7 +117,7 @@ impl BlobStorage for FileBlobStorage {
             let mut size = blob.read(&mut buf)
                 .map_err(|e| ("Error reading input", e))?;
             while size > 0 {
-                hasher.update(&buf[..size]);
+                hasher.write_all(&buf[..size]).unwrap();
                 fp.write_all(&buf[..size])
                     .map_err(|e| ("Error writing to temporary file", e))?;
                 size = blob.read(&mut buf)
@@ -161,7 +161,7 @@ impl BlobStorage for FileBlobStorage {
                         Err(e) => error!("Error getting blob: {}", e),
                         Ok(None) => error!("Error gettting blob"),
                         Ok(Some(blob)) => {
-                            hasher.update(&blob);
+                            hasher.write_all(&blob).unwrap();
                             if id != hasher.result() {
                                 warn!("Blob has the wrong hash: {:?}",
                                       self.filename(&id));
