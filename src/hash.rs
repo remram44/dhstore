@@ -6,6 +6,7 @@ use std::hash;
 /// Identifier for an object.
 ///
 /// Because they are content-addressable, this is a hash of its content.
+#[derive(Clone)]
 pub struct ID {
     pub bytes: [u8; 32],
 }
@@ -81,6 +82,12 @@ impl fmt::Display for ID {
             write!(f, "{:02x}", byte)?;
         }
         Ok(())
+    }
+}
+
+impl fmt::Debug for ID {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "ID({})", self)
     }
 }
 

@@ -58,6 +58,7 @@ fn read_byte<R: Read>(read: &mut R) -> io::Result<u8> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 enum Item {
     Property(Property),
     End,
@@ -167,5 +168,101 @@ pub fn hash_object(properties: BTreeMap<String, Property>) -> Object {
     Object {
         id: hasher.result(),
         properties: properties,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use std::io::{Cursor, Write};
+
+    use common::{ID, Property};
+    use hash::Hasher;
+    use serialize::{Item, hash_object, read_item, serialize, deserialize};
+
+    fn fake_id(digit: u8) -> ID {
+        ID::from_hex(&[b'0' + digit as u8; 64]).unwrap()
+    }
+
+    #[test]
+    fn test_serialize() {
+        // Create properties
+        let mut properties = BTreeMap::new();
+        properties.insert("filename".into(),
+                          Property::String("DSC_20170303223104.jpg".into()));
+        properties.insert("people".into(), Property::Integer(5));
+        properties.insert("camera".into(), Property::Reference(fake_id(1)));
+        properties.insert("data".into(), Property::Blob(fake_id(2)));
+        let hash = ID::from_hex(b"11512c59dec727e39da7c9d60662713f\
+                                361d5da176da6aba915f07fd6a345560").unwrap();
+        let obj = hash_object(properties);
+        assert_eq!(obj.id, hash);
+        let mut serialized = Vec::new();
+        serialize(&mut serialized, &obj).unwrap();
+        let expected: &[u8] =
+            b"o\
+              r64:11512c59dec727e39da7c9d60662713f\
+              361d5da176da6aba915f07fd6a345560\
+              6:camera\
+              r64:11111111111111111111111111111111\
+              11111111111111111111111111111111\
+              4:data\
+              b64:22222222222222222222222222222222\
+              22222222222222222222222222222222\
+              8:filename\
+              22:DSC_20170303223104.jpg\
+              6:people\
+              i5e\
+              e";
+        assert_eq!(serialized,
+                   expected);
+    }
+
+    #[test]
+    fn test_deserialize() {
+        let data: &[u8] =
+            b"o\
+              r64:11512c59dec727e39da7c9d60662713f\
+              361d5da176da6aba915f07fd6a345560\
+              6:camera\
+              r64:11111111111111111111111111111111\
+              11111111111111111111111111111111\
+              4:data\
+              b64:22222222222222222222222222222222\
+              22222222222222222222222222222222\
+              8:filename\
+              22:DSC_20170303223104.jpg\
+              6:people\
+              i5e\
+              e";
+        let obj = deserialize(Cursor::new(data)).unwrap();
+    }
+
+    #[test]
+    fn test_readitem_s() {
+        assert_eq!(read_item(&mut Cursor::new(b"5:hello")).unwrap(),
+                   Item::Property(Property::String("hello".into())));
+    }
+
+    #[test]
+    fn test_readitem_i() {
+        assert_eq!(read_item(&mut Cursor::new(b"i42e")).unwrap(),
+                   Item::Property(Property::Integer(42)));
+    }
+
+    #[test]
+    fn test_readitem_rb() {
+        let hash: &[u8] = b"01234567890123456789\
+                            01234567890123456789\
+                            012345678901234567891234";
+        let id = ID::from_hex(hash).unwrap();
+        let mut s = Vec::new();
+        s.extend_from_slice(b"r64:");
+        s.extend_from_slice(hash);
+        assert_eq!(read_item(&mut Cursor::new(&s)).unwrap(),
+                   Item::Property(Property::Reference(id.clone())));
+        s[0] = b'b';
+        assert_eq!(read_item(&mut Cursor::new(&s)).unwrap(),
+                   Item::Property(Property::Blob(id)));
     }
 }

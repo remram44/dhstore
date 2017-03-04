@@ -7,6 +7,7 @@ pub use hash::ID;
 /// Values that appear in an object's metadata.
 ///
 /// This is either an integer, a string, or a reference to another object.
+#[derive(Debug, PartialEq, Eq)]
 pub enum Property {
     String(String),
     Integer(i64),
