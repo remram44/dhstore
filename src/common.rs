@@ -66,9 +66,3 @@ pub trait Cursor {
     fn next(&mut self) -> Object;
     fn ignore(&mut self, id: &ID);
 }
-
-impl PartialEq for ID {
-    fn eq(&self, other: &ID) -> bool {
-        self.bytes == other.bytes
-    }
-}

@@ -61,6 +61,12 @@ impl ID {
     }
 }
 
+impl PartialEq for ID {
+    fn eq(&self, other: &ID) -> bool {
+        self.bytes == other.bytes
+    }
+}
+
 impl Eq for ID {}
 
 impl hash::Hash for ID {
