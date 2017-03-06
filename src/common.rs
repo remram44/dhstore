@@ -15,10 +15,15 @@ pub enum Property {
     Blob(ID),
 }
 
+pub enum ObjectData {
+    Dict(BTreeMap<String, Property>),
+    List(Vec<Property>),
+}
+
 /// A schema object, i.e. a dictionary of properties.
 pub struct Object {
     pub id: ID,
-    pub properties: BTreeMap<String, Property>,
+    pub data: ObjectData,
 }
 
 pub struct Query {
