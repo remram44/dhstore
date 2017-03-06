@@ -306,7 +306,7 @@ mod tests {
         ID::from_hex(&[b'0' + digit as u8; 64]).unwrap()
     }
 
-    const test_dict: &[u8] =
+    const test_dict: &'static [u8] =
         b"d\
           1:d12:dhstore_0001\
           1:h64:ed2f5d00a27066ea63ae8ddffb58e0c7\
@@ -348,7 +348,7 @@ mod tests {
         let obj = deserialize(Cursor::new(test_dict)).unwrap();
     }
 
-    const test_list: &[u8] =
+    const test_list: &'static [u8] =
         b"d\
           1:d12:dhstore_0001\
           1:h64:1875c2ab1a6ee9d1bd9ee4b4f70ea819\
