@@ -1,7 +1,7 @@
 [package]
 name = "dhstore"
 version = "0.0.1"
-authors = [ "Remi Rampin <remirampin@gmail.com>" ]
+authors = ["Remi Rampin <remirampin@gmail.com>"]
 repository = "https://github.com/remram44/dhstore"
 
 [[bin]]
@@ -9,6 +9,7 @@ name = "dhstore"
 doc = false
 
 [dependencies]
+chunker = { path = "chunker" }
 clap = "2.20"
 log = "0.3"
 sha2 = "0.4"

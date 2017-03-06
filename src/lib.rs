@@ -1,3 +1,4 @@
+extern crate chunker;
 #[macro_use]
 extern crate log as log_crate;
 extern crate sha2;
