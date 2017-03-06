@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 
 use common::{ID, Object, ObjectData, Property};
-use hash::Hasher;
+use hash::{Hasher, HasherWriter};
 
 // Dictionary: d<id><key><value><key><value>...e
 // List: l<value><value>...e
@@ -80,12 +80,20 @@ fn write_data<W: Write>(out: &mut W, data: &ObjectData)
     Ok(())
 }
 
-pub fn serialize<W: Write>(out: &mut W, object: &Object) -> io::Result<()> {
+pub fn serialize<W: Write>(mut out: &mut W, object: &Object) -> io::Result<()> {
     out.write_all(b"d\
                     1:d12:dhstore_0001\
                     1:h")?;
     write_str(out, &object.id.hex())?;
-    write_data(out, &object.data)?;
+    if cfg!(debug_assertions) {
+        let mut hasherwriter = HasherWriter::new(&mut out);
+        write_data(&mut hasherwriter, &object.data)?;
+        if hasherwriter.result() != object.id {
+            panic!("serializing an object yielded a different ID");
+        }
+    } else {
+        write_data(out, &object.data)?;
+    }
     out.write_all(b"e")
 }
 
@@ -262,10 +270,18 @@ pub fn deserialize<R: Read>(mut read: R) -> io::Result<Object> {
         (Some(i), _) => invalid!("unknown object type '{}'", i),
         _ => invalid!("invalid object type"),
     };
-    Ok(Object {
+    let object = Object {
         id: id,
         data: data,
-    })
+    };
+    if cfg!(debug_assertions) {
+        let mut hasher = Hasher::new();
+        write_data(&mut hasher, &object.data).unwrap();
+        if hasher.result() != object.id {
+            panic!("deserializing an object yielded a different ID");
+        }
+    }
+    Ok(object)
 }
 
 pub fn hash_object(data: ObjectData) -> Object {

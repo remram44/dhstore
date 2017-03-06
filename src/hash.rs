@@ -121,3 +121,39 @@ impl Write for Hasher {
         Ok(())
     }
 }
+
+pub struct HasherWriter<W: Write> {
+    hasher: Hasher,
+    writer: W,
+}
+
+impl<W: Write> HasherWriter<W> {
+    pub fn new(writer: W) -> HasherWriter<W> {
+        HasherWriter {
+            hasher: Hasher::new(),
+            writer: writer,
+        }
+    }
+
+    pub fn result(self) -> ID {
+        self.hasher.result()
+    }
+}
+
+impl<W: Write> Write for HasherWriter<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let len = self.writer.write(buf)?;
+        self.hasher.write(&buf[..len]).unwrap();
+        Ok(len)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.writer.flush()
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
+        self.writer.write_all(buf)?;
+        self.hasher.write(&buf).unwrap();
+        Ok(())
+    }
+}
