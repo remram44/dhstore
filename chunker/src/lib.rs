@@ -11,13 +11,14 @@ const BUF_SIZE: usize = 4096;
 #[cfg(test)]
 const BUF_SIZE: usize = 8;
 
+const HM: Wrapping<u32> = Wrapping(123456791);
+
 pub fn read_chunks<R: Read, F: FnMut(ChunkInput)>
     (mut reader: R, nbits: usize, mut callback: F) -> io::Result<()>
 {
     let nbits = 32 - nbits;
     let mut c1 = 0u8; // previous byte
     let mut o1 = [0u8; 256];
-    const HM: Wrapping<u32> = Wrapping(123456791);
     let mut h = HM;
     let mut chunk_emitted = false;
 
@@ -38,6 +39,7 @@ pub fn read_chunks<R: Read, F: FnMut(ChunkInput)>
                     h = h * HM * Wrapping(2) + Wrapping(c as u32 + 1);
                 }
                 o1[c1 as usize] = c;
+                c1 = c;
 
                 if h.0 < (1 << nbits) {
                     callback(ChunkInput::Data(&buf[s..(i + 1)]));
