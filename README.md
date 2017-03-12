@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/remram44/dhstore.svg?branch=master)](https://travis-ci.org/remram44/dhstore/builds)
 
-[Generated documentation](https://remram44.github.io/adler32-rs/index.html)
+[Generated documentation](https://remram44.github.io/dhstore/index.html)
 
 What is this?
 =============
