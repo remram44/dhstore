@@ -233,8 +233,8 @@ impl ObjectIndex for MemoryIndex {
     fn add(&mut self, data: ObjectData) -> errors::Result<ID> {
         let object = serialize::hash_object(data);
         let id = object.id.clone();
-        info!("Adding object to index: {}", id);
         if !self.objects.contains_key(&id) {
+            info!("Adding object to index: {}", id);
             let hex = id.hex();
             let mut path = self.path.join(&hex[..]);
             if !path.exists() {
