@@ -1,6 +1,12 @@
 use std::io::{self, Read};
 use std::num::Wrapping;
 
+/// Items returned by the `Chunks` iterator.
+///
+/// Contains either some data that is part of the current chunk, or `End`,
+/// indicating the boundary between chunks.
+///
+/// `End` is always returned at the end of the last chunk.
 pub enum ChunkInput<'a> {
     Data(&'a [u8]),
     End,
@@ -13,6 +19,7 @@ const BUF_SIZE: usize = 8;
 
 const HM: Wrapping<u32> = Wrapping(123456791);
 
+/// Iterator returned by `chunks()`.
 pub struct Chunks<R: Read> {
     reader: R,
     nbits: usize,
@@ -25,6 +32,18 @@ pub struct Chunks<R: Read> {
     chunk_emitted: bool,
 }
 
+/// Read through a file, splitting it into chunk defined by a rolling hash.
+///
+/// This makes an iterator that will emit the bytes from a file, indicating when
+/// a chunk boundary has been found.
+///
+/// The iterator's items are `ChunkInput` objects, that are either some data, or
+/// a chunk boundary. Therefore chunks are not returned in one go but streamed
+/// out for speed.
+///
+/// `nbits` indicates how many leftmost bits have to be zeros in the 32-bit
+/// rolling hash value for it to be a boundary; thus `8` makes chunks of 256
+/// bytes in average, `16` chunks of 64 KiB in average, ...
 pub fn chunks<R: Read>(reader: R, nbits: usize) -> Chunks<R> {
     Chunks {
         reader: reader,
@@ -40,6 +59,12 @@ pub fn chunks<R: Read>(reader: R, nbits: usize) -> Chunks<R> {
 }
 
 impl<R: Read> Chunks<R> {
+    /// Iterate on the chunks, returning `ChunkInput` items.
+    ///
+    /// An item is either some data that is part of the current chunk, or `End`,
+    /// indicating the boundary between chunks.
+    ///
+    /// `End` is always returned at the end of the last chunk.
     // Can't be iterator because of 'a
     pub fn read<'a>(&'a mut self) -> Option<io::Result<ChunkInput<'a>>> {
         if self.pos == self.len {
