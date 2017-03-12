@@ -119,9 +119,18 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
 
     pub fn verify(&mut self) -> errors::Result<()> {
         info!("Verifying objects...");
-        self.index.verify(false)?;
+        self.index.verify()?;
         info!("Verifying blobs...");
         self.storage.verify()
+    }
+}
+
+impl<S: EnumerableBlobStorage, I: ObjectIndex> Store<S, I> {
+    pub fn collect_garbage(&mut self) -> errors::Result<()> {
+        info!("Collecting objects...");
+        let live_blobs = self.index.collect_garbage()?;
+        info!("Collecting blobs...");
+        self.storage.collect_garbage(live_blobs)
     }
 }
 

@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use errors;
 pub use hash::ID;
@@ -60,11 +60,21 @@ pub trait EnumerableBlobStorage: BlobStorage {
     type Iter: Iterator<Item = errors::Result<ID>>;
 
     fn list_blobs(&self) -> errors::Result<Self::Iter>;
+    fn collect_garbage(&mut self, alive: HashSet<ID>) -> errors::Result<()> {
+        for blob in self.list_blobs()? {
+            let blob = blob?;
+            if alive.contains(&blob) {
+                self.delete_blob(&blob)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 pub trait ObjectIndex {
     fn add(&mut self, data: ObjectData) -> errors::Result<ID>;
-    fn verify(&mut self, collect: bool) -> errors::Result<()>;
+    fn verify(&mut self) -> errors::Result<()>;
+    fn collect_garbage(&mut self) -> errors::Result<HashSet<ID>>;
 }
 
 pub trait Cursor {

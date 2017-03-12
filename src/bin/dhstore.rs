@@ -38,8 +38,12 @@ fn main() {
                     .arg(verbose)
                     .args(store_args))
         .subcommand(SubCommand::with_name("verify")
-                    .about("Verifies the store (checks for invalid values and \
-                            garbage collects)")
+                    .about("Verifies the store (checks for invalid values)")
+                    .arg(verbose)
+                    .args(store_args))
+        .subcommand(SubCommand::with_name("gc")
+                    .about("Verifies the store and deletes garbage \
+                            (unreachable objects and blobs)")
                     .arg(verbose)
                     .args(store_args))
         .subcommand(SubCommand::with_name("add")
@@ -110,6 +114,9 @@ fn run_command(command: &str, matches: &clap::ArgMatches)
         }
         "verify" => {
             get_store()?.verify()
+        }
+        "gc" => {
+            get_store()?.collect_garbage()
         }
         "add" => {
             let id = get_store()?.add(matches.value_of_os("ID").unwrap())?;

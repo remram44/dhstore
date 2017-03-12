@@ -134,17 +134,10 @@ impl MemoryIndex {
             policy: Box::new(PolicyV1::new()),
         })
     }
-}
 
-impl ObjectIndex for MemoryIndex {
-    fn add(&mut self, data: ObjectData) -> errors::Result<ID> {
-        let object = serialize::hash_object(data);
-        // TODO: Add to index
-        unimplemented!()
-    }
-
-    fn verify(&mut self, collect: bool) -> errors::Result<()> {
+    fn walk(&mut self, collect: bool) -> errors::Result<HashSet<ID>> {
         let mut alive = HashSet::new(); // ids
+        let mut live_blobs = HashSet::new(); // ids
         let mut open = VecDeque::new(); // objects
         match self.objects.get(&self.root) {
             None => error!("Root is missing: {}", self.root),
@@ -157,7 +150,28 @@ impl ObjectIndex for MemoryIndex {
             if !alive.contains(id) {
                 alive.insert(id);
             }
+            // TODO: Walk references
         }
-        Ok(())
+        if collect {
+            // TODO: Collect dead objects
+            unimplemented!()
+        }
+        Ok(live_blobs)
+    }
+}
+
+impl ObjectIndex for MemoryIndex {
+    fn add(&mut self, data: ObjectData) -> errors::Result<ID> {
+        let object = serialize::hash_object(data);
+        // TODO: Add to index
+        unimplemented!()
+    }
+
+    fn verify(&mut self) -> errors::Result<()> {
+        self.walk(false).map(|_| ())
+    }
+
+    fn collect_garbage(&mut self) -> errors::Result<HashSet<ID>> {
+        self.walk(true)
     }
 }
