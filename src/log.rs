@@ -31,7 +31,7 @@ impl Log for StderrLogger {
                 LogLevel::Error => Color::Red,
                 LogLevel::Warn => Color::Magenta,
                 LogLevel::Info => Color::Yellow,
-                LogLevel::Debug => Color::White,
+                LogLevel::Debug => Color::Cyan,
                 LogLevel::Trace => Color::Blue,
             };
             stderr.set_color(&ColorSpec::new().set_fg(Some(color))).unwrap();
