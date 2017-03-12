@@ -24,6 +24,7 @@ pub use file_storage::FileBlobStorage;
 use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
+use std::mem::swap;
 use std::path::Path;
 
 /// Main structure, representing the whole system.
@@ -75,10 +76,21 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
         let mut iter = chunks(reader, 13); // 8 KiB average
         let mut chunks = Vec::new();
         let mut size = 0;
+        const MAX_LEN: usize = 64 * 1024; // 64 KiB hard maximum
         while let Some(chunk) = iter.read() {
             let chunk = chunk.map_err(|e| ("Error reading from blob", e))?;
             match chunk {
-                ChunkInput::Data(d) => blob.extend_from_slice(d),
+                ChunkInput::Data(d) => {
+                    blob.extend_from_slice(d);
+                    if blob.len() > MAX_LEN {
+                        let mut other = blob.split_off(MAX_LEN);
+                        swap(&mut blob, &mut other);
+                        assert_eq!(other.len(), MAX_LEN);
+                        size += other.len();
+                        let id = self.storage.add_blob(&other)?;
+                        chunks.push(Property::Blob(id));
+                    }
+                }
                 ChunkInput::End => {
                     size += blob.len();
                     let id = self.storage.add_blob(&blob)?;
