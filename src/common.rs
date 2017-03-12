@@ -19,12 +19,15 @@ pub enum Property {
     Blob(ID),
 }
 
+pub type Dict = BTreeMap<String, Property>;
+pub type List = Vec<Property>;
+
 /// The two types of object contents: either a list or a dict.
 ///
 /// Object is simply this structure with an `ID` tacked on.
 pub enum ObjectData {
-    Dict(BTreeMap<String, Property>),
-    List(Vec<Property>),
+    Dict(Dict),
+    List(List),
 }
 
 /// A schema object, i.e. either a dictionary or a list of properties.

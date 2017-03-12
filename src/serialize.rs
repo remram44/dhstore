@@ -8,7 +8,7 @@
 use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 
-use common::{ID, Object, ObjectData, Property};
+use common::{ID, Dict, List, Object, ObjectData, Property};
 use hash::{Hasher, HasherWriter};
 
 // Dictionary: d<id><key><value><key><value>...e
@@ -255,7 +255,7 @@ pub fn deserialize<R: Read>(mut read: R) -> io::Result<Object> {
     let data = match (obj.remove("i").as_ref().and_then(Item::str),
                       obj.remove("r").unwrap()) {
         (Some("o"), Item::Dict(d)) => {
-            let mut dict = BTreeMap::new();
+            let mut dict = Dict::new();
             for (k, v) in d.into_iter() {
                 match convert_property(v) {
                     Some(v) => { dict.insert(k, v); }
@@ -266,7 +266,7 @@ pub fn deserialize<R: Read>(mut read: R) -> io::Result<Object> {
         }
         (Some("o"), _) => invalid!("object is 'o' but not a dict"),
         (Some("l"), Item::List(l)) => {
-            let mut list =  Vec::new();
+            let mut list = List::new();
             for v in l.into_iter() {
                 match convert_property(v) {
                     Some(v) => list.push(v),
@@ -305,10 +305,9 @@ pub fn hash_object(data: ObjectData) -> Object {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
     use std::io::Cursor;
 
-    use common::{ID, ObjectData, Property};
+    use common::{ID, Dict, List, ObjectData, Property};
     use serialize::{hash_object, serialize, deserialize};
 
     fn fake_id(digit: u8) -> ID {
@@ -340,7 +339,7 @@ mod tests {
     #[test]
     fn test_serialize_dict() {
         // Create properties
-        let mut properties = BTreeMap::new();
+        let mut properties = Dict::new();
         properties.insert("filename".into(),
                           Property::String("DSC_20170303223104.jpg".into()));
         properties.insert("people".into(), Property::Integer(5));
@@ -377,7 +376,7 @@ mod tests {
     #[test]
     fn test_serialize_list() {
         // Create properties
-        let properties: Vec<Property> = ["cvs", "subversion", "darcs", "git", "mercurial"]
+        let properties: List = ["cvs", "subversion", "darcs", "git", "mercurial"]
             .iter()
             .map(|&s: &&str| -> String { s.into() })
             .map(Property::String)

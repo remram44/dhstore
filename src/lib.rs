@@ -15,13 +15,12 @@ mod memory_index;
 mod serialize;
 
 use chunker::{ChunkInput, chunks};
-pub use common::{ID, Property, ObjectData, Object,
+pub use common::{ID, Dict, List, Property, ObjectData, Object,
                  BlobStorage, EnumerableBlobStorage, ObjectIndex};
 use errors::Error;
 pub use memory_index::MemoryIndex;
 pub use file_storage::FileBlobStorage;
 
-use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::mem::swap;
@@ -109,7 +108,7 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
         -> errors::Result<ID>
     {
         let path = path.as_ref();
-        let mut contents = BTreeMap::new();
+        let mut contents = Dict::new();
         let entries = path.read_dir()
             .map_err(|e| ("Couldn't list directory to be added", e))?;
         for entry in entries {
@@ -137,7 +136,7 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
             let fp = File::open(path)
                 .map_err(|e| ("Can't open file to be added", e))?;
             let (contents_id, size) = self.add_file(fp)?;
-            let mut map = BTreeMap::new();
+            let mut map = Dict::new();
             map.insert("size".into(), Property::Integer(size as i64));
             map.insert("contents".into(),
                        Property::Reference(contents_id.clone()));
