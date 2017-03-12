@@ -28,9 +28,9 @@ impl FileBlobStorage {
     /// Builds the path to an object from its ID.
     fn filename(&self, id: &ID) -> PathBuf {
         let mut path = self.path.to_path_buf();
-        let hex = id.hex();
-        path.push(&hex[..2]);
-        path.push(&hex[2..]);
+        let hashstr = id.str();
+        path.push(&hashstr[..4]);
+        path.push(&hashstr[4..]);
         path
     }
 }
@@ -122,7 +122,7 @@ impl EnumerableBlobStorage for FileBlobStorage {
             .map_err(|e| ("Blobs directory doesn't exist", e))?;
         Ok(FileBlobIterator {
             first: first,
-            first_val: [0u8; 2],
+            first_val: [0u8; 4],
             second: None,
         })
     }
@@ -137,7 +137,7 @@ impl EnumerableBlobStorage for FileBlobStorage {
 /// is `Err(...)`, you should abort iteration.
 pub struct FileBlobIterator {
     first: fs::ReadDir,
-    first_val: [u8; 2],
+    first_val: [u8; 4],
     second: Option<fs::ReadDir>,
 }
 
@@ -163,7 +163,7 @@ impl Iterator for FileBlobIterator {
                     }
                 };
                 let slice = name.as_bytes();
-                if slice.len() != 2 {
+                if slice.len() != 4 {
                     return Some(Err(Error::CorruptedStore(
                         "First-level entry has invalid length")));
                 }
@@ -187,8 +187,8 @@ impl Iterator for FileBlobIterator {
                     e)));
             }
             let entry = entry.unwrap();
-            let mut id = [0u8; 64];
-            id[..2].clone_from_slice(&self.first_val);
+            let mut id = [0u8; 44];
+            id[..4].clone_from_slice(&self.first_val);
             let name = entry.file_name()
                 .into_string();
             if let Err(_) = name {
@@ -197,12 +197,12 @@ impl Iterator for FileBlobIterator {
             }
             let name = name.unwrap();
             let slice = name.as_bytes();
-            if slice.len() != 62 {
+            if slice.len() != 40 {
                 return Some(Err(Error::CorruptedStore(
                     "Second-level entry has invalid length")));
             }
-            id[2..].clone_from_slice(slice);
-            Some(ID::from_hex(&id)
+            id[4..].clone_from_slice(slice);
+            Some(ID::from_str(&id)
                  .ok_or(Error::CorruptedStore("Path is not a valid ID")))
         } else {
             self.second = None;

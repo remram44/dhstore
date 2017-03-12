@@ -47,7 +47,7 @@ macro_rules! invalid {
 
 fn write_ref<W: Write>(out: &mut W, id: &ID, blob: bool) -> io::Result<()> {
     out.write_all(if blob { b"d4:blob" } else { b"d3:ref" })?;
-    write_str(out, &id.hex())?;
+    write_str(out, &id.str())?;
     out.write_all(b"e")
 }
 
@@ -92,8 +92,8 @@ pub fn serialize<W: Write>(mut out: &mut W, object: &Object) -> io::Result<()> {
     out.write_all(b"d\
                     1:d12:dhstore_0001\
                     1:h")?;
-    write_str(out, &object.id.hex())?;
-    if cfg!(debug_assertions) {
+    write_str(out, &object.id.str())?;
+    if cfg!(debug_assertions) || cfg!(test) {
         let mut hasherwriter = HasherWriter::new(&mut out);
         write_data(&mut hasherwriter, &object.data)?;
         if hasherwriter.result() != object.id {
@@ -213,7 +213,7 @@ fn convert_property(item: Item) -> Option<Property> {
             if d.len() == 1 {
                 let (k, v) = d.into_iter().next().unwrap();
                 if let Some(v) = v.str().map(str::as_bytes)
-                    .and_then(ID::from_hex)
+                    .and_then(ID::from_str)
                 {
                     return match &k[..] {
                         "ref" => Some(Property::Reference(v)),
@@ -247,7 +247,7 @@ pub fn deserialize<R: Read>(mut read: R) -> io::Result<Object> {
         invalid!("unknown format");
     }
     let id = match obj.get("h").and_then(Item::str)
-        .map(str::as_bytes).and_then(ID::from_hex)
+        .map(str::as_bytes).and_then(ID::from_str)
     {
         Some(id) => id,
         None => invalid!("invalid ID"),
@@ -283,7 +283,7 @@ pub fn deserialize<R: Read>(mut read: R) -> io::Result<Object> {
         id: id,
         data: data,
     };
-    if cfg!(debug_assertions) {
+    if cfg!(debug_assertions) || cfg!(test) {
         let mut hasher = Hasher::new();
         write_data(&mut hasher, &object.data).unwrap();
         if hasher.result() != object.id {
@@ -312,22 +312,25 @@ mod tests {
     use serialize::{hash_object, serialize, deserialize};
 
     fn fake_id(digit: u8) -> ID {
-        ID::from_hex(&[b'0' + digit as u8; 64]).unwrap()
+        let mut s = [b'0' + digit as u8; 44];
+        s[0] = b'D';
+        s[1] = b'B';
+        ID::from_str(&s).unwrap()
     }
 
     const TEST_DICT: &'static [u8] =
         b"d\
           1:d12:dhstore_0001\
-          1:h64:ed2f5d00a27066ea63ae8ddffb58e0c7\
-          f28f4b8620784dc12e3fbcb01c52f79a\
+          1:h44:DM9kOjgeWVofsWw3hKHdT0\
+          MjbkQ7sdyHHpVKW295Wwhm\
           1:i1:o\
           1:rd\
           6:camera\
-          d3:ref64:11111111111111111111111111111111\
-          11111111111111111111111111111111e\
+          d3:ref44:DB11111111111111111111\
+          1111111111111111111111e\
           4:data\
-          d4:blob64:22222222222222222222222222222222\
-          22222222222222222222222222222222e\
+          d4:blob44:DB22222222222222222222\
+          2222222222222222222222e\
           8:filename\
           22:DSC_20170303223104.jpg\
           6:people\
@@ -343,8 +346,8 @@ mod tests {
         properties.insert("people".into(), Property::Integer(5));
         properties.insert("camera".into(), Property::Reference(fake_id(1)));
         properties.insert("data".into(), Property::Blob(fake_id(2)));
-        let hash = ID::from_hex(b"ed2f5d00a27066ea63ae8ddffb58e0c7\
-                                  f28f4b8620784dc12e3fbcb01c52f79a").unwrap();
+        let hash = ID::from_str(b"DM9kOjgeWVofsWw3hKHdT0\
+                                  MjbkQ7sdyHHpVKW295Wwhm").unwrap();
         let obj = hash_object(ObjectData::Dict(properties));
         assert_eq!(obj.id, hash);
         let mut serialized = Vec::new();
@@ -360,8 +363,8 @@ mod tests {
     const TEST_LIST: &'static [u8] =
         b"d\
           1:d12:dhstore_0001\
-          1:h64:1875c2ab1a6ee9d1bd9ee4b4f70ea819\
-          cddb97ed3f15d5a24a3fd08c61b96407\
+          1:h44:DBh1wqsabunRvZ7ktPcOqB\
+          nN25ftPxXVoko_0IxhuWQH\
           1:i1:l\
           1:rl\
           3:cvs\
@@ -379,8 +382,8 @@ mod tests {
             .map(|&s: &&str| -> String { s.into() })
             .map(Property::String)
             .collect();
-        let hash = ID::from_hex(b"1875c2ab1a6ee9d1bd9ee4b4f70ea819\
-                                  cddb97ed3f15d5a24a3fd08c61b96407").unwrap();
+        let hash = ID::from_str(b"DBh1wqsabunRvZ7ktPcOqB\
+                                  nN25ftPxXVoko_0IxhuWQH").unwrap();
         let obj = hash_object(ObjectData::List(properties));
         assert_eq!(obj.id, hash);
         let mut serialized = Vec::new();

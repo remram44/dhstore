@@ -276,13 +276,13 @@ impl ObjectIndex for MemoryIndex {
         let id = object.id.clone();
         if !self.objects.contains_key(&id) {
             info!("Adding object to index: {}", id);
-            let hex = id.hex();
-            let mut path = self.path.join(&hex[..]);
+            let hashstr = id.str();
+            let mut path = self.path.join(&hashstr[..4]);
             if !path.exists() {
                 fs::create_dir(&path)
                     .map_err(|e| ("Can't create object directory", e))?;
             }
-            path.push(&hex[2..]);
+            path.push(&hashstr[4..]);
             let mut fp = OpenOptions::new()
                 .write(true)
                 .create_new(true)

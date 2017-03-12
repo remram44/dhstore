@@ -16,6 +16,18 @@ pub struct ID {
     pub bytes: [u8; 32],
 }
 
+const BASE64_CHARS: &'static [u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+const BASE64_BYTES: &'static [u8] = &[
+    64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+    64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+    64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 64, 64,
+    52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 64, 64, 64, 64, 64, 64,
+    64, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+    15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 64, 64, 64, 64, 63,
+    64, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+    41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 64, 64, 64, 64, 64,
+];
+
 impl ID {
     /// Make an ID from raw bytes.
     pub fn from_slice(buf: &[u8]) -> Option<ID> {
@@ -37,41 +49,68 @@ impl ID {
 
     /// Returns a string representation of the ID.
     ///
-    /// This is the hash in lowercase hexadecimal.
-    pub fn hex(&self) -> String {
-        let mut hex = Vec::with_capacity(Self::hash_size() * 2);
-        for byte in &self.bytes {
-            write!(&mut hex, "{:02x}", byte).unwrap();
+    /// This is the hash in base64.
+    pub fn str(&self) -> String {
+        fn b64(byte: u8) -> u8 {
+            BASE64_CHARS[63 & (byte as usize)]
         }
-        unsafe { String::from_utf8_unchecked(hex) }
+
+        let mut hashstr = vec![0u8; 44];
+        let bytes = &self.bytes;
+        let code = 12u8;
+        hashstr[0] = b64(code >> 2                                );
+        hashstr[1] = b64(code << 4 | bytes[0] >> 4                );
+        hashstr[2] = b64(            bytes[0] << 2 | bytes[1] >> 6);
+        hashstr[3] = b64(                            bytes[1]     );
+        for i in 0..10 {
+            let c = 4 * (i + 1);
+            let b = &self.bytes[2 + i * 3..];
+            hashstr[c    ] = b64(b[0] >> 2                        );
+            hashstr[c + 1] = b64(b[0] << 4 | b[1] >> 4            );
+            hashstr[c + 2] = b64(            b[1] << 2 | b[2] >> 6);
+            hashstr[c + 3] = b64(                        b[2]     );
+        }
+        unsafe { String::from_utf8_unchecked(hashstr) }
     }
 
     /// Parses the string representation into a ID.
     ///
     /// This returns an `ID` if the string was valid, else None.
-    pub fn from_hex(hex: &[u8]) -> Option<ID> {
-        if hex.len() != Self::hash_size() * 2 {
+    pub fn from_str(hashstr: &[u8]) -> Option<ID> {
+        macro_rules! b64 {
+            ( $chr:expr ) => {
+                {
+                    let _chr = $chr;
+                    if _chr < 128u8 {
+                        let _byte = BASE64_BYTES[_chr as usize];
+                        if _byte == 64 {
+                            return None;
+                        } else {
+                            _byte
+                        }
+                    } else {
+                        return None
+                    }
+                }
+            };
+        }
+
+        if hashstr.len() != 44 {
             return None;
         }
-        let mut modulus = 0;
-        let mut buf = 0u8;
+        let code = b64!(hashstr[0]) << 2 | b64!(hashstr[1]) >> 4;
+        if code != 12 {
+            return None;
+        }
         let mut out = [0u8; 32];
-        for (i, byte) in hex.iter().cloned().enumerate() {
-            buf <<= 4;
-
-            match byte {
-                b'0'...b'9' => buf |= byte - b'0',
-                b'a'...b'f' => buf |= byte - b'a' + 10,
-                // Also accept uppercase, though we don't write it
-                b'A'...b'F' => buf |= byte - b'A' + 10,
-                _ => return None,
-            }
-
-            modulus += 1;
-            if modulus == 2 {
-                modulus = 0;
-                out[i / 2] = buf;
-            }
+        out[0] = b64!(hashstr[1]) << 4 | b64!(hashstr[2]) >> 2;
+        out[1] = b64!(hashstr[2]) << 6 | b64!(hashstr[3]);
+        for i in 0..10 {
+            let b = 2 + i * 3;
+            let s = &hashstr[4 * (i + 1)..];
+            out[b    ] = b64!(s[0]) << 2 | b64!(s[1]) >> 4;
+            out[b + 1] = b64!(s[1]) << 4 | b64!(s[2]) >> 2;
+            out[b + 2] = b64!(s[2]) << 6 | b64!(s[3]);
         }
         Some(ID { bytes: out })
     }
@@ -93,9 +132,7 @@ impl hash::Hash for ID {
 
 impl fmt::Display for ID {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        for byte in &self.bytes {
-            write!(f, "{:02x}", byte)?;
-        }
+        write!(f, "{}", self.str())?;
         Ok(())
     }
 }
@@ -182,5 +219,37 @@ impl<W: Write> Write for HasherWriter<W> {
         self.writer.write_all(buf)?;
         self.hasher.write(&buf).unwrap();
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ::ID;
+
+    fn run_tests(check: &Fn(&[u8], &str)) {
+        check(b"abcdefghijklmnopqrstuvwxyz123456",
+              "DGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6MTIzNDU2");
+        check(b"\x00bcd\xF4fg\x7Fijkl\x88nop\x00rstuvwxyz123\xC9\xFF\xDE",
+              "DABiY2T0Zmd_aWprbIhub3AAcnN0dXZ3eHl6MTIzyf_e");
+        check(b"\xFFbcd\xF4fg\x7Fijkl\x88nop\x00rstuvwxyz123\x14\x03\x00",
+              "DP9iY2T0Zmd_aWprbIhub3AAcnN0dXZ3eHl6MTIzFAMA");
+    }
+
+    #[test]
+    fn test_encode() {
+        fn check(bin: &[u8], enc: &str) {
+            assert_eq!(ID::from_slice(bin).unwrap().str(),
+                       enc);
+        }
+        run_tests(&check);
+    }
+
+    #[test]
+    fn test_decode() {
+        fn check(bin: &[u8], enc: &str) {
+            assert_eq!(ID::from_str(enc.as_bytes()).unwrap().bytes,
+                       bin);
+        }
+        run_tests(&check);
     }
 }

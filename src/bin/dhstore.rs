@@ -131,7 +131,7 @@ fn run_command(command: &str, matches: &clap::ArgMatches)
         }
         "show" => {
             let store = get_store()?;
-            let id = ID::from_hex(matches.value_of("ID").unwrap().as_bytes())
+            let id = ID::from_str(matches.value_of("ID").unwrap().as_bytes())
                 .ok_or(Error::InvalidInput("Input is not a valid ID"))?;
             let depth = if let Some(arg) = matches.value_of_lossy("DEPTH") {
                 match arg.parse() {
@@ -161,7 +161,7 @@ fn run_command(command: &str, matches: &clap::ArgMatches)
         }
         "blob_get" => {
             let store = get_store()?;
-            let id = ID::from_hex(matches.value_of("ID").unwrap().as_bytes())
+            let id = ID::from_str(matches.value_of("ID").unwrap().as_bytes())
                 .ok_or(Error::InvalidInput("Input is not a valid ID"))?;
             match store.get_blob(&id)? {
                 Some(blob) => {
