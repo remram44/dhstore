@@ -52,12 +52,7 @@ fn main() {
                     .args(store_args)
                     .arg(Arg::with_name("INPUT")
                          .required(true)
-                         .help("Input file"))
-                    .arg(Arg::with_name("name")
-                         .short("n")
-                         .takes_value(true)
-                         .value_name("NAME")
-                         .help("Override level of top-level entry")))
+                         .help("Input file")))
         .subcommand(SubCommand::with_name("blob_add")
                     .about("Low-level; add a blob from a file or stdin")
                     .arg(verbose)
@@ -119,7 +114,7 @@ fn run_command(command: &str, matches: &clap::ArgMatches)
             get_store()?.collect_garbage()
         }
         "add" => {
-            let id = get_store()?.add(matches.value_of_os("ID").unwrap())?;
+            let id = get_store()?.add(matches.value_of_os("INPUT").unwrap())?;
             println!("{}", id);
             Ok(())
         }

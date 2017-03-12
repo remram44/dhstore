@@ -48,11 +48,15 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
         self.storage.get_blob(id)
     }
 
+    pub fn get_object(&self, id: &ID) -> errors::Result<Option<&Object>> {
+        self.index.get_object(id)
+    }
+
     pub fn add_file<R: Read>(&mut self, reader: R)
         -> errors::Result<(ID, usize)>
     {
         let mut blob = Vec::new();
-        let mut iter = chunks(reader, 16);
+        let mut iter = chunks(reader, 13); // 8 KiB average
         let mut chunks = Vec::new();
         let mut size = 0;
         while let Some(chunk) = iter.read() {

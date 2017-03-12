@@ -73,6 +73,7 @@ pub trait EnumerableBlobStorage: BlobStorage {
 
 pub trait ObjectIndex {
     fn add(&mut self, data: ObjectData) -> errors::Result<ID>;
+    fn get_object(&self, id: &ID) -> errors::Result<Option<&Object>>;
     fn verify(&mut self) -> errors::Result<()>;
     fn collect_garbage(&mut self) -> errors::Result<HashSet<ID>>;
 }

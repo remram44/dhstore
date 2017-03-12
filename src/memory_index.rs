@@ -1,5 +1,6 @@
+use log_crate::LogLevel;
 use std::collections::{HashMap, HashSet, VecDeque};
-use std::fs::File;
+use std::fs::{self, File, OpenOptions};
 use std::path::{PathBuf, Path};
 
 use common::{ID, Object, ObjectData, ObjectIndex, Property};
@@ -49,6 +50,7 @@ enum Backkey {
 }
 
 pub struct MemoryIndex {
+    path: PathBuf,
     objects: HashMap<ID, RefCountedObject>,
     backlinks: HashMap<ID, HashSet<(Backkey, ID)>>,
     root: ID,
@@ -59,9 +61,15 @@ impl MemoryIndex {
     pub fn open<P: AsRef<Path>>(path: P, root: ID)
         -> errors::Result<MemoryIndex>
     {
-        let mut objects = HashMap::new();
-        let mut backlinks: HashMap<ID, HashSet<(Backkey, ID)>> = HashMap::new();
-        let dirlist = path.as_ref().read_dir()
+        let path = path.as_ref();
+        let mut index = MemoryIndex {
+            path: path.to_path_buf(),
+            objects: HashMap::new(),
+            backlinks: HashMap::new(),
+            root: root,
+            policy: Box::new(PolicyV1::new()),
+        };
+        let dirlist = path.read_dir()
             .map_err(|e| ("Error listing objects directory", e))?;
         for first in dirlist {
             let first = first
@@ -86,18 +94,52 @@ impl MemoryIndex {
                     Ok(o) => o,
                 };
 
-                // Record reverse references
-                let mut insert = |target: &ID, key: Backkey, source: ID| {
-                    if let Some(set) = backlinks.get_mut(target) {
-                        set.insert((key, source));
-                        return;
+                index.insert_object_do_backrefs(object);
+            }
+        }
+
+        // TODO: Parse root config
+
+        Ok(index)
+    }
+
+    fn insert_object_do_backrefs(&mut self, object: Object) {
+        // Record reverse references
+        {
+            let mut insert = |target: &ID, key: Backkey, source: ID| {
+                if log_enabled!(LogLevel::Debug) {
+                    match key {
+                        Backkey::Index(i) => {
+                            debug!("Reference {} -> {} ({})",
+                                   source, target, i);
+                        }
+                        Backkey::Key(ref k) => {
+                            debug!("Reference {} -> {} ({})",
+                                   source, target, k);
+                        }
                     }
-                    let mut set = HashSet::new();
+                }
+
+                // Increment refs of target
+                if let Some(refobj) = self.objects.get_mut(target) {
+                    match refobj.refs {
+                        RefCount::Number(ref mut nb) => *nb += 1,
+                        RefCount::Special => {}
+                    }
+                }
+
+                // Add backlink
+                if let Some(set) = self.backlinks.get_mut(target) {
                     set.insert((key, source));
-                    backlinks.insert(target.clone(), set);
-                };
-                match object.data {
-                    ObjectData::Dict(ref dict) => for (k, v) in dict {
+                    return;
+                }
+                let mut set = HashSet::new();
+                set.insert((key, source));
+                self.backlinks.insert(target.clone(), set);
+            };
+            match object.data {
+                ObjectData::Dict(ref dict) => {
+                    for (k, v) in dict {
                         match v {
                             &Property::Reference(ref id) => {
                                 insert(id,
@@ -106,8 +148,10 @@ impl MemoryIndex {
                             }
                             _ => {}
                         }
-                    },
-                    ObjectData::List(ref list) => for (k, v) in list.into_iter().enumerate() {
+                    }
+                }
+                ObjectData::List(ref list) => {
+                    for (k, v) in list.into_iter().enumerate() {
                         match v {
                             &Property::Reference(ref id) => {
                                 insert(id,
@@ -118,40 +162,65 @@ impl MemoryIndex {
                         }
                     }
                 }
-
-                objects.insert(object.id.clone(),
-                               RefCountedObject { refs: RefCount::Number(0),
-                                                  object: object });
             }
         }
 
-        // TODO: Parse root config
-
-        Ok(MemoryIndex {
-            objects: objects,
-            backlinks: backlinks,
-            root: root,
-            policy: Box::new(PolicyV1::new()),
-        })
+        let refs = self.backlinks.get(&object.id)
+            .map_or(0, |backlinks| backlinks.len());
+        self.objects.insert(object.id.clone(),
+                            RefCountedObject { refs: RefCount::Number(refs),
+                                               object: object });
     }
 
     fn walk(&mut self, collect: bool) -> errors::Result<HashSet<ID>> {
-        let mut alive = HashSet::new(); // ids
+        let mut alive = HashMap::new(); // ids => refcount
         let mut live_blobs = HashSet::new(); // ids
         let mut open = VecDeque::new(); // objects
         match self.objects.get(&self.root) {
             None => error!("Root is missing: {}", self.root),
             Some(obj) => open.push_front(obj),
         }
-        while let Some(object) = open.pop_back() {
+        while let Some(object) = open.pop_front() {
             let id = &object.object.id;
             debug!("Walking, open={}, alive={}/{}, id={}",
                    open.len(), alive.len(), self.objects.len(), id);
-            if !alive.contains(id) {
-                alive.insert(id);
+            if let Some(v) = alive.get_mut(id) {
+                *v += 1;
+                debug!("  already alive, incrementing refs to {}", v);
+                continue;
             }
-            // TODO: Walk references
+            alive.insert(id, 1);
+            let mut handle = |value: &Property| {
+                match value {
+                    &Property::Reference(ref id) => {
+                        if let Some(obj) = self.objects.get(id){
+                            open.push_back(obj);
+                        }
+                    }
+                    &Property::Blob(ref id) => {
+                        if collect {
+                            live_blobs.insert(id.clone());
+                        }
+                    }
+                    _ => {}
+                }
+            };
+            match object.object.data {
+                ObjectData::Dict(ref dict) => {
+                    debug!("  is dict, {} values", dict.len());
+                    for (_, v) in dict {
+                        handle(v);
+                    }
+                }
+                ObjectData::List(ref list) => {
+                    debug!("  is list, {} values", list.len());
+                    for v in list {
+                        handle(v);
+                    }
+                }
+            }
         }
+        info!("Found {}/{} live objects", alive.len(), self.objects.len());
         if collect {
             // TODO: Collect dead objects
             unimplemented!()
@@ -163,8 +232,30 @@ impl MemoryIndex {
 impl ObjectIndex for MemoryIndex {
     fn add(&mut self, data: ObjectData) -> errors::Result<ID> {
         let object = serialize::hash_object(data);
-        // TODO: Add to index
-        unimplemented!()
+        let id = object.id.clone();
+        info!("Adding object to index: {}", id);
+        if !self.objects.contains_key(&id) {
+            let hex = id.hex();
+            let mut path = self.path.join(&hex[..]);
+            if !path.exists() {
+                fs::create_dir(&path)
+                    .map_err(|e| ("Can't create object directory", e))?;
+            }
+            path.push(&hex[2..]);
+            let mut fp = OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&path)
+                .map_err(|e| ("Can't open object file", e))?;
+            serialize::serialize(&mut fp, &object)
+                .map_err(|e| ("Error writing object to disk", e))?;
+            self.insert_object_do_backrefs(object);
+        }
+        Ok(id)
+    }
+
+    fn get_object(&self, id: &ID) -> errors::Result<Option<&Object>> {
+        Ok(self.objects.get(id).map(|r| &r.object))
     }
 
     fn verify(&mut self) -> errors::Result<()> {
