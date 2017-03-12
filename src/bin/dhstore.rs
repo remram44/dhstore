@@ -53,6 +53,17 @@ fn main() {
                     .arg(Arg::with_name("INPUT")
                          .required(true)
                          .help("Input file")))
+        .subcommand(SubCommand::with_name("show")
+                    .about("Pretty-print an object")
+                    .arg(verbose)
+                    .args(store_args)
+                    .arg(Arg::with_name("ID")
+                         .required(true)
+                         .help("ID of object to print from"))
+                    .arg(Arg::with_name("--depth")
+                         .takes_value(true)
+                         .value_name("DEPTH")
+                         .help("Maximum recursion depth")))
         .subcommand(SubCommand::with_name("blob_add")
                     .about("Low-level; add a blob from a file or stdin")
                     .arg(verbose)
@@ -117,6 +128,23 @@ fn run_command(command: &str, matches: &clap::ArgMatches)
             let id = get_store()?.add(matches.value_of_os("INPUT").unwrap())?;
             println!("{}", id);
             Ok(())
+        }
+        "show" => {
+            let store = get_store()?;
+            let id = ID::from_hex(matches.value_of("ID").unwrap().as_bytes())
+                .ok_or(Error::InvalidInput("Input is not a valid ID"))?;
+            let depth = if let Some(arg) = matches.value_of_lossy("DEPTH") {
+                match arg.parse() {
+                    Ok(i) => Some(i),
+                    Err(_) => {
+                        return Err(
+                            Error::InvalidInput("Invalid number for --depth"));
+                    }
+                }
+            } else {
+                None
+            };
+            store.print_object(&id, depth)
         }
         "blob_add" => {
             let mut store = get_store()?;

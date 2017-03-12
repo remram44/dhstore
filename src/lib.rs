@@ -30,6 +30,12 @@ pub struct Store<S: BlobStorage, I: ObjectIndex> {
     index: I,
 }
 
+fn indent(level: usize) {
+    for _ in 0..level {
+        print!("  ");
+    }
+}
+
 impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
     pub fn new(storage: S, index: I) -> Store<S, I> {
         Store {
@@ -126,6 +132,76 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
         self.index.verify()?;
         info!("Verifying blobs...");
         self.storage.verify()
+    }
+
+    fn print_property(&self, property: &Property,
+                      limit: Option<usize>,
+                      level: usize)
+        -> errors::Result<()>
+    {
+        match property {
+            &Property::String(ref s) => print!("{:?}", s),
+            &Property::Integer(i) => print!("{}", i),
+            &Property::Reference(ref id) => {
+                match self.get_object(id)? {
+                    Some(obj) => self.print_obj_(obj, limit, level)?,
+                    None => print!("{} #missing#", id),
+                }
+            }
+            &Property::Blob(ref id) => print!("blob-{}", id),
+        }
+        Ok(())
+    }
+
+    fn print_obj_(&self, object: &Object,
+                  limit: Option<usize>,
+                  mut level: usize)
+        -> errors::Result<()>
+    {
+        let recurse = limit.map_or(true, |l| level < l);
+
+        if recurse {
+            match object.data {
+                ObjectData::Dict(ref dict) => {
+                    println!("{} {{", object.id);
+                    level += 1;
+                    for (k, v) in dict {
+                        indent(level);
+                        print!("{:?} ", k);
+                        self.print_property(v, limit, level)?;
+                        println!();
+                    }
+                    level -= 1;
+                    indent(level); print!("}}");
+                }
+                ObjectData::List(ref list) => {
+                    println!("{} [", object.id);
+                    level += 1;
+                    for v in list {
+                        indent(level);
+                        self.print_property(v, limit, level)?;
+                        println!();
+                    }
+                    level -= 1;
+                    indent(level);
+                    print!("]");
+                }
+            }
+        } else {
+            match object.data {
+                ObjectData::Dict(_) => println!("{} {{ ... }}", object.id),
+                ObjectData::List(_) => println!("{} [ ... ]", object.id),
+            }
+        }
+        Ok(())
+    }
+
+    pub fn print_object(&self, id: &ID, limit: Option<usize>)
+        -> errors::Result<()>
+    {
+        self.print_property(&Property::Reference(id.clone()), limit, 0)?;
+        println!();
+        Ok(())
     }
 }
 
