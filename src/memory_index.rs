@@ -7,12 +7,13 @@
 //! some point.
 
 use log_crate::LogLevel;
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{self, File, OpenOptions};
 use std::path::{PathBuf, Path};
 
 use common::{ID, Object, ObjectData, ObjectIndex, Property};
-use errors;
+use errors::{self, Error};
 use serialize;
 
 /// Return value from a Policy for some object.
@@ -36,19 +37,19 @@ pub trait Policy {
               -> (PolicyDecision, Box<Policy>);
 }
 
-/// Placeholder. Policy is not yet implemented.
-struct PolicyV1;
+/// Placeholder Policy that keeps everything.
+struct KeepPolicy;
 
-impl PolicyV1 {
-    fn new() -> PolicyV1 {
-        PolicyV1
+impl KeepPolicy {
+    fn new() -> KeepPolicy {
+        KeepPolicy
     }
 }
 
-impl Policy for PolicyV1 {
+impl Policy for KeepPolicy {
     fn handle(&mut self, property: &str, object: Object)
               -> (PolicyDecision, Box<Policy>) {
-        unimplemented!() // TODO: policy stuff
+        (PolicyDecision::Keep, Box::new(KeepPolicy))
     }
 }
 
@@ -84,6 +85,7 @@ pub struct MemoryIndex {
     objects: HashMap<ID, RefCountedObject>,
     backlinks: HashMap<ID, HashSet<(Backkey, ID)>>,
     root: ID,
+    log: Option<ID>,
     policy: Box<Policy>,
 }
 
@@ -97,8 +99,9 @@ impl MemoryIndex {
             path: path.to_path_buf(),
             objects: HashMap::new(),
             backlinks: HashMap::new(),
-            root: root,
-            policy: Box::new(PolicyV1::new()),
+            root: root.clone(),
+            log: None,
+            policy: Box::new(KeepPolicy::new()),
         };
         let dirlist = path.read_dir()
             .map_err(|e| ("Error listing objects directory", e))?;
@@ -129,7 +132,35 @@ impl MemoryIndex {
             }
         }
 
-        // TODO: Parse root config
+        // Parse root config
+        index.log = {
+            let config = index.get_object(&root)?
+                .ok_or(Error::CorruptedStore("Missing root object"))?;
+            let config = match config.data {
+                ObjectData::Dict(ref dict) => dict,
+                _ => return Err(Error::CorruptedStore(
+                    "Root object is not a dict")),
+            };
+            match config.get("log") {
+                Some(&Property::Reference(ref id)) => {
+                    let log_obj = index.get_object(id)?
+                        .ok_or(Error::CorruptedStore("Missing log object"))?;
+                    match log_obj.data {
+                        ObjectData::Permanode(_) => {
+                            debug!("Activated log: {}", id);
+                        }
+                        _ => {
+                            return Err(Error::CorruptedStore(
+                                "Log is not a permanode"));
+                        }
+                    }
+                    Some(id.clone())
+                }
+                Some(_) => return Err(Error::CorruptedStore(
+                    "Log is not a reference")),
+                None => None,
+            }
+        };
 
         Ok(index)
     }
@@ -174,7 +205,9 @@ impl MemoryIndex {
                 self.backlinks.insert(target.clone(), set);
             };
             match object.data {
-                ObjectData::Dict(ref dict) => {
+                ObjectData::Dict(ref dict) |
+                ObjectData::Permanode(ref dict) |
+                ObjectData::Claim(ref dict) => {
                     for (k, v) in dict {
                         match v {
                             &Property::Reference(ref id) => {
@@ -208,7 +241,7 @@ impl MemoryIndex {
                                                object: object });
     }
 
-    /// Common logic for `verify()` and c`ollect_garbage().`
+    /// Common logic for `verify()` and `collect_garbage().`
     ///
     /// Goes over the tree of objects, checking for errors. If `collect` is
     /// true, unreferenced objects are deleted, and the set of referenced blobs
@@ -256,6 +289,28 @@ impl MemoryIndex {
                 ObjectData::List(ref list) => {
                     debug!("  is list, {} values", list.len());
                     for v in list {
+                        handle(v);
+                    }
+                }
+                ObjectData::Permanode(ref dict) => {
+                    debug!("  is permanode, {} values", dict.len());
+                    for (_, v) in dict {
+                        handle(v);
+                    }
+                }
+                ObjectData::Claim(ref dict) => {
+                    fn print_id(v: Option<&Property>) -> Cow<str> {
+                        match v {
+                            Some(&Property::Reference(ref id)) => id.str().into(),
+                            Some(_) => "#invalid#".into(),
+                            None => "#unset#".into(),
+                        }
+                    }
+                    debug!("  is claim, {} permanode, {} value, {} values",
+                           print_id(dict.get("n")),
+                           print_id(dict.get("v")),
+                           dict.len());
+                    for (_, v) in dict {
                         handle(v);
                     }
                 }
