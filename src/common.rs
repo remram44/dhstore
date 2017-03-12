@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::io::Read;
 
 use errors;
 pub use hash::ID;
@@ -53,7 +52,6 @@ pub trait BlobStorage {
     fn get_blob(&self, id: &ID) -> errors::Result<Option<Box<[u8]>>>;
     fn add_blob(&mut self, blob: &[u8]) -> errors::Result<ID>;
     fn add_known_blob(&mut self, id: &ID, blob: &[u8]) -> errors::Result<()>;
-    fn copy_blob<R: Read>(&mut self, blob: R) -> errors::Result<ID>;
     fn delete_blob(&mut self, id: &ID) -> errors::Result<()>;
     fn verify(&mut self) -> errors::Result<()>;
 }
@@ -65,6 +63,7 @@ pub trait EnumerableBlobStorage: BlobStorage {
 }
 
 pub trait ObjectIndex {
+    fn add(&mut self, data: ObjectData) -> errors::Result<ID>;
     fn verify(&mut self, collect: bool) -> errors::Result<()>;
 }
 

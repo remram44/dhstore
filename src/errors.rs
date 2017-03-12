@@ -5,6 +5,7 @@ use std::io;
 pub enum Error {
     IoError(&'static str, io::Error),
     CorruptedStore(&'static str),
+    InvalidInput(&'static str),
 }
 
 impl Display for Error {
@@ -19,6 +20,9 @@ impl Display for Error {
             Error::CorruptedStore(ref msg) => {
                 write!(f, "Corrupted store: {}", msg)
             }
+            Error::InvalidInput(ref msg) => {
+                write!(f, "Invalid input: {}", msg)
+            }
         }
     }
 }
@@ -28,6 +32,7 @@ impl ::std::error::Error for Error {
         match *self {
             Error::IoError(_, _) => "I/O error",
             Error::CorruptedStore(_) => "Corrupted store",
+            Error::InvalidInput(_) => "Invalid input",
         }
     }
 

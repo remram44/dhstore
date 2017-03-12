@@ -137,6 +137,12 @@ impl MemoryIndex {
 }
 
 impl ObjectIndex for MemoryIndex {
+    fn add(&mut self, data: ObjectData) -> errors::Result<ID> {
+        let object = serialize::hash_object(data);
+        // TODO: Add to index
+        unimplemented!()
+    }
+
     fn verify(&mut self, collect: bool) -> errors::Result<()> {
         let mut alive = HashSet::new(); // ids
         let mut open = VecDeque::new(); // objects

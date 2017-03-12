@@ -12,14 +12,17 @@ pub mod log;
 mod memory_index;
 mod serialize;
 
-pub use common::{ID, Property, Object, Path, PathComponent, BlobStorage,
-                 EnumerableBlobStorage, ObjectIndex};
+use chunker::{ChunkInput, chunks};
+pub use common::{ID, Property, ObjectData, Object,
+                 BlobStorage, EnumerableBlobStorage, ObjectIndex};
 use errors::Error;
 pub use memory_index::MemoryIndex;
 pub use file_storage::FileBlobStorage;
 
+use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
+use std::path::Path;
 
 /// Main structure, representing the whole system.
 pub struct Store<S: BlobStorage, I: ObjectIndex> {
@@ -35,8 +38,83 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
         }
     }
 
-    pub fn add_blob<R: Read>(&mut self, blob: R) -> errors::Result<ID> {
-        self.storage.copy_blob(blob)
+    pub fn add_blob<R: Read>(&mut self, mut reader: R) -> errors::Result<ID> {
+        let mut blob = Vec::new();
+        reader.read_to_end(&mut blob).map_err(|e| ("Error reading blob", e))?;
+        self.storage.add_blob(&blob)
+    }
+
+    pub fn get_blob(&self, id: &ID) -> errors::Result<Option<Box<[u8]>>> {
+        self.storage.get_blob(id)
+    }
+
+    pub fn add_file<R: Read>(&mut self, reader: R)
+        -> errors::Result<(ID, usize)>
+    {
+        let mut blob = Vec::new();
+        let mut iter = chunks(reader, 16);
+        let mut chunks = Vec::new();
+        let mut size = 0;
+        while let Some(chunk) = iter.read() {
+            let chunk = chunk.map_err(|e| ("Error reading from blob", e))?;
+            match chunk {
+                ChunkInput::Data(d) => blob.extend_from_slice(d),
+                ChunkInput::End => {
+                    size += blob.len();
+                    let id = self.storage.add_blob(&blob)?;
+                    chunks.push(Property::Blob(id));
+                    blob.clear();
+                }
+            }
+        }
+        let nb_chunks = chunks.len();
+        let id = self.index.add(ObjectData::List(chunks))?;
+        info!("Added file contents, {} chunks, id = {}", nb_chunks, id);
+        Ok((id, size))
+    }
+
+    pub fn add_dir<P: AsRef<Path>>(&mut self, path: P)
+        -> errors::Result<ID>
+    {
+        let path = path.as_ref();
+        let mut contents = BTreeMap::new();
+        let entries = path.read_dir()
+            .map_err(|e| ("Couldn't list directory to be added", e))?;
+        for entry in entries {
+            let entry = entry.map_err(|e| ("Error reading directory", e))?;
+            let id = self.add(entry.path())?;
+            contents.insert(entry.file_name().to_string_lossy().into_owned(),
+                            Property::Reference(id));
+        }
+        let nb_entries = contents.len();
+        let id = self.index.add(ObjectData::Dict(contents))?;
+        info!("Added directory {:?}, {} entries, id = {}",
+              path, nb_entries, id);
+        Ok(id)
+    }
+
+    pub fn add<P: AsRef<Path>>(&mut self, path: P)
+        -> errors::Result<ID>
+    {
+        let path = path.as_ref();
+        if path.is_dir() {
+            self.add_dir(path)
+        } else if path.is_file() {
+            let fp = File::open(path)
+                .map_err(|e| ("Can't open file to be added", e))?;
+            let (contents_id, size) = self.add_file(fp)?;
+            let mut map = BTreeMap::new();
+            map.insert("size".into(), Property::Integer(size as i64));
+            map.insert("contents".into(),
+                       Property::Reference(contents_id.clone()));
+            let id = self.index.add(ObjectData::Dict(map))?;
+            info!("Added file {:?}, size = {}, contents = {}, id = {}",
+                  path, size, contents_id, id);
+            Ok(id)
+        } else {
+            return Err(errors::Error::IoError("Can't find path to be added",
+                                              io::ErrorKind::NotFound.into()));
+        }
     }
 
     pub fn verify(&mut self) -> errors::Result<()> {
@@ -47,7 +125,7 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
     }
 }
 
-pub fn open<P: AsRef<::std::path::Path>>(path: P)
+pub fn open<P: AsRef<Path>>(path: P)
     -> errors::Result<Store<FileBlobStorage, MemoryIndex>>
 {
     let path = path.as_ref();
@@ -81,7 +159,7 @@ pub fn open<P: AsRef<::std::path::Path>>(path: P)
     Ok(Store::new(storage, index))
 }
 
-pub fn create<P: AsRef<::std::path::Path>>(path: P) -> errors::Result<()> {
+pub fn create<P: AsRef<Path>>(path: P) -> errors::Result<()> {
     let path = path.as_ref();
 
     // Create directory

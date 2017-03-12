@@ -6,12 +6,14 @@ extern crate termcolor;
 
 extern crate dhstore;
 
+use dhstore::errors::Error;
+use dhstore::hash::ID;
 use dhstore::log::init;
 
 use clap::{App, Arg, SubCommand};
 use log::LogLevel;
 use std::fs::File;
-use std::io;
+use std::io::{self, Write};
 use std::process;
 
 fn main() {
@@ -22,8 +24,8 @@ fn main() {
     let store_args = &[
         Arg::with_name("store")
             .short("d")
-            .value_name("PATH")
             .takes_value(true)
+            .value_name("PATH")
             .help("Location of the store"),
     ];
     let matches = App::new("dhstore")
@@ -40,13 +42,32 @@ fn main() {
                             garbage collects)")
                     .arg(verbose)
                     .args(store_args))
-        .subcommand(SubCommand::with_name("add_blob")
-                    .about("Add a blob from a file or stdin")
+        .subcommand(SubCommand::with_name("add")
+                    .about("Add a file or directory")
+                    .arg(verbose)
+                    .args(store_args)
+                    .arg(Arg::with_name("INPUT")
+                         .required(true)
+                         .help("Input file"))
+                    .arg(Arg::with_name("name")
+                         .short("n")
+                         .takes_value(true)
+                         .value_name("NAME")
+                         .help("Override level of top-level entry")))
+        .subcommand(SubCommand::with_name("blob_add")
+                    .about("Low-level; add a blob from a file or stdin")
                     .arg(verbose)
                     .args(store_args)
                     .arg(Arg::with_name("INPUT")
                          .required(true)
                          .help("Input file or \"-\" for stdin")))
+        .subcommand(SubCommand::with_name("blob_get")
+                    .about("Low-level; get a blob from the store by its ID")
+                    .arg(verbose)
+                    .args(store_args)
+                    .arg(Arg::with_name("ID")
+                         .required(true)
+                         .help("ID of the blob to print")))
         .get_matches();
 
     let mut level = matches.occurrences_of("verbose");
@@ -87,7 +108,15 @@ fn run_command(command: &str, matches: &clap::ArgMatches)
             let path = matches.value_of_os("store").unwrap_or(".".as_ref());
             dhstore::create(path)
         }
-        "add_blob" => {
+        "verify" => {
+            get_store()?.verify()
+        }
+        "add" => {
+            let id = get_store()?.add(matches.value_of_os("ID").unwrap())?;
+            println!("{}", id);
+            Ok(())
+        }
+        "blob_add" => {
             let mut store = get_store()?;
             let file = matches.value_of_os("INPUT").unwrap();
             let id = if file == "-" {
@@ -100,9 +129,21 @@ fn run_command(command: &str, matches: &clap::ArgMatches)
             println!("{}", id);
             Ok(())
         }
-        "verify" => {
-            let mut store = get_store()?;
-            store.verify()
+        "blob_get" => {
+            let store = get_store()?;
+            let id = ID::from_hex(matches.value_of("ID").unwrap().as_bytes())
+                .ok_or(Error::InvalidInput("Input is not a valid ID"))?;
+            match store.get_blob(&id)? {
+                Some(blob) => {
+                    io::stdout().write_all(&blob)
+                        .map_err(|e| ("Error writing to stdout", e))?;
+                }
+                None => {
+                    write!(io::stderr(), "Blob not found").unwrap();
+                    process::exit(1);
+                }
+            }
+            Ok(())
         }
         _ => panic!("Missing code for command {}", command),
     }
