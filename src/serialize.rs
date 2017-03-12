@@ -296,17 +296,16 @@ pub fn hash_object(data: ObjectData) -> Object {
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
-    use std::io::{Cursor, Write};
+    use std::io::Cursor;
 
     use common::{ID, ObjectData, Property};
-    use hash::Hasher;
-    use serialize::{Item, hash_object, read_item, serialize, deserialize};
+    use serialize::{hash_object, serialize, deserialize};
 
     fn fake_id(digit: u8) -> ID {
         ID::from_hex(&[b'0' + digit as u8; 64]).unwrap()
     }
 
-    const test_dict: &'static [u8] =
+    const TEST_DICT: &'static [u8] =
         b"d\
           1:d12:dhstore_0001\
           1:h64:ed2f5d00a27066ea63ae8ddffb58e0c7\
@@ -340,15 +339,15 @@ mod tests {
         assert_eq!(obj.id, hash);
         let mut serialized = Vec::new();
         serialize(&mut serialized, &obj).unwrap();
-        assert_eq!(serialized, test_dict);
+        assert_eq!(serialized, TEST_DICT);
     }
 
     #[test]
     fn test_deserialize_dict() {
-        let obj = deserialize(Cursor::new(test_dict)).unwrap();
+        deserialize(Cursor::new(TEST_DICT)).unwrap();
     }
 
-    const test_list: &'static [u8] =
+    const TEST_LIST: &'static [u8] =
         b"d\
           1:d12:dhstore_0001\
           1:h64:1875c2ab1a6ee9d1bd9ee4b4f70ea819\
@@ -365,7 +364,7 @@ mod tests {
     #[test]
     fn test_serialize_list() {
         // Create properties
-        let mut properties: Vec<Property> = ["cvs", "subversion", "darcs", "git", "mercurial"]
+        let properties: Vec<Property> = ["cvs", "subversion", "darcs", "git", "mercurial"]
             .iter()
             .map(|&s: &&str| -> String { s.into() })
             .map(Property::String)
@@ -376,11 +375,11 @@ mod tests {
         assert_eq!(obj.id, hash);
         let mut serialized = Vec::new();
         serialize(&mut serialized, &obj).unwrap();
-        assert_eq!(serialized, test_list);
+        assert_eq!(serialized, TEST_LIST);
     }
 
     #[test]
     fn test_deserialize_list() {
-        let obj = deserialize(Cursor::new(test_list)).unwrap();
+        deserialize(Cursor::new(TEST_LIST)).unwrap();
     }
 }
