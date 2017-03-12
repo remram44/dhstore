@@ -1,3 +1,5 @@
+//! DHStore: A personal content management system.
+
 extern crate chunker;
 #[macro_use]
 extern crate log as log_crate;
@@ -37,6 +39,7 @@ fn indent(level: usize) {
 }
 
 impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
+    /// Creates a store from a given blob storage and object index.
     pub fn new(storage: S, index: I) -> Store<S, I> {
         Store {
             storage: storage,
@@ -44,20 +47,27 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
         }
     }
 
+    /// Low-level; adds a blob to the blob storage.
+    ///
+    /// To cut a blob into chunks, add them to the blob storage, and return a
+    /// list object of them, use `Store::add_file()`.
     pub fn add_blob<R: Read>(&mut self, mut reader: R) -> errors::Result<ID> {
         let mut blob = Vec::new();
         reader.read_to_end(&mut blob).map_err(|e| ("Error reading blob", e))?;
         self.storage.add_blob(&blob)
     }
 
+    /// Low-level; gets a single blob from the blob storage.
     pub fn get_blob(&self, id: &ID) -> errors::Result<Option<Box<[u8]>>> {
         self.storage.get_blob(id)
     }
 
+    /// Low-level; gets a single object from the index by its ID.
     pub fn get_object(&self, id: &ID) -> errors::Result<Option<&Object>> {
         self.index.get_object(id)
     }
 
+    /// Cuts a file into chunks and add a list object of them to the index.
     pub fn add_file<R: Read>(&mut self, reader: R)
         -> errors::Result<(ID, usize)>
     {
@@ -103,6 +113,8 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
         Ok(id)
     }
 
+    /// Adds a file or directory recursively, representing directories as dicts
+    /// and files as lists of blobs.
     pub fn add<P: AsRef<Path>>(&mut self, path: P)
         -> errors::Result<ID>
     {
@@ -127,6 +139,7 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
         }
     }
 
+    /// Checks the blobs and objects for errors.
     pub fn verify(&mut self) -> errors::Result<()> {
         info!("Verifying objects...");
         self.index.verify()?;
@@ -196,6 +209,12 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
         Ok(())
     }
 
+    /// Pretty-prints objects recursively.
+    ///
+    /// If `limit` is not `None`, it is the maximum depth of nested objects
+    /// we'll print; for example, `Some(1)` means that objects directly
+    /// referenced from the given one will be expanded, but not objects
+    /// referenced from those.
     pub fn print_object(&self, id: &ID, limit: Option<usize>)
         -> errors::Result<()>
     {
@@ -214,6 +233,10 @@ impl<S: EnumerableBlobStorage, I: ObjectIndex> Store<S, I> {
     }
 }
 
+/// Opens a directory.
+///
+/// This uses the `FileBlobStorage` and `MemoryIndex` to create a `Store` from a
+/// filesystem directory.
 pub fn open<P: AsRef<Path>>(path: P)
     -> errors::Result<Store<FileBlobStorage, MemoryIndex>>
 {
@@ -248,6 +271,7 @@ pub fn open<P: AsRef<Path>>(path: P)
     Ok(Store::new(storage, index))
 }
 
+/// Creates a new store on disk.
 pub fn create<P: AsRef<Path>>(path: P) -> errors::Result<()> {
     let path = path.as_ref();
 

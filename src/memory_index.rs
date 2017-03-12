@@ -1,3 +1,11 @@
+//! Implementation of an object indexer that stores everything in memory.
+//!
+//! This loads all the objects from disk into memory. Objects added to the index
+//! are immediately written to disk as well.
+//!
+//! This is very inefficient and should be backed by proper database code at
+//! some point.
+
 use log_crate::LogLevel;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{self, File, OpenOptions};
@@ -7,17 +15,28 @@ use common::{ID, Object, ObjectData, ObjectIndex, Property};
 use errors;
 use serialize;
 
+/// Return value from a Policy for some object.
 pub enum PolicyDecision {
     Get,
     Keep,
     Drop,
 }
 
+/// A policy defines which objects are valid and which we want to keep.
+///
+/// DHStore has a root configuration where the user defines what trees he wants
+/// to keep, schemas to validate those trees against, disk usage limits, etc. He
+/// can also set up delegations, to read in more policy objects recursively, ...
+///
+/// A `Policy` object contains all this information for a specific place in the
+/// tree, and handles all the builtin, user-supplied, and recursive behaviors
+/// for the index.
 pub trait Policy {
     fn handle(&mut self, property: &str, object: Object)
               -> (PolicyDecision, Box<Policy>);
 }
 
+/// Placeholder. Policy is not yet implemented.
 struct PolicyV1;
 
 impl PolicyV1 {
@@ -33,22 +52,33 @@ impl Policy for PolicyV1 {
     }
 }
 
+/// An object with a reference count attached.
+///
+/// Because the index has mutable objects (permanodes), cycles are possible and
+/// a proper garbage collector is necessary. However, for non-mutable nodes, a
+/// reference count is still stored to make it faster to collect.
 pub enum RefCount {
     Number(usize),
     Special,
 }
 
+/// An object with a reference count tacked on.
 pub struct RefCountedObject {
     refs: RefCount,
     object: Object,
 }
 
+/// Key of a reference, used in the backward reference map.
+///
+/// A reference is a value, and can appear in both types of schema objects: in a
+/// dict, it is associated with a string key, and in a list, with an index.
 #[derive(PartialEq, Eq, Hash)]
 enum Backkey {
     Index(usize),
     Key(String),
 }
 
+/// The in-memory index, that loads all objects from the disk on startup.
 pub struct MemoryIndex {
     path: PathBuf,
     objects: HashMap<ID, RefCountedObject>,
@@ -58,6 +88,7 @@ pub struct MemoryIndex {
 }
 
 impl MemoryIndex {
+    /// Reads all the objects from a directory into memory.
     pub fn open<P: AsRef<Path>>(path: P, root: ID)
         -> errors::Result<MemoryIndex>
     {
@@ -103,6 +134,11 @@ impl MemoryIndex {
         Ok(index)
     }
 
+    /// Utility to insert a new object in the store while taking care of refs.
+    ///
+    /// Insert the object, sets its reference count from the back reference map,
+    /// updates the reference count of referenced object, and adds references to
+    /// the back reference map.
     fn insert_object_do_backrefs(&mut self, object: Object) {
         // Record reverse references
         {
@@ -172,6 +208,11 @@ impl MemoryIndex {
                                                object: object });
     }
 
+    /// Common logic for `verify()` and c`ollect_garbage().`
+    ///
+    /// Goes over the tree of objects, checking for errors. If `collect` is
+    /// true, unreferenced objects are deleted, and the set of referenced blobs
+    /// is returned; else, an empty `HashSet` is returned.
     fn walk(&mut self, collect: bool) -> errors::Result<HashSet<ID>> {
         let mut alive = HashMap::new(); // ids => refcount
         let mut live_blobs = HashSet::new(); // ids

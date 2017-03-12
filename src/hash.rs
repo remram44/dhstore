@@ -1,3 +1,8 @@
+//! Structures and functions related to hashing.
+//!
+//! This module contains the `ID` type used to addres blobs and objects by their
+//! content, as well as `Hasher` used to build it from bytes.
+
 use sha2::{Digest, Sha256};
 use std::fmt;
 use std::io::{self, Write};
@@ -12,6 +17,7 @@ pub struct ID {
 }
 
 impl ID {
+    /// Make an ID from raw bytes.
     pub fn from_slice(buf: &[u8]) -> Option<ID> {
         if buf.len() == 32 {
             let mut bytes = [0u8; 32];
@@ -22,10 +28,16 @@ impl ID {
         }
     }
 
+    /// Returns the size of the hash in bytes.
+    ///
+    /// This module uses SHA256, therefore this is always 32.
     pub fn hash_size() -> usize {
         32
     }
 
+    /// Returns a string representation of the ID.
+    ///
+    /// This is the hash in lowercase hexadecimal.
     pub fn hex(&self) -> String {
         let mut hex = Vec::with_capacity(Self::hash_size() * 2);
         for byte in &self.bytes {
@@ -34,6 +46,9 @@ impl ID {
         unsafe { String::from_utf8_unchecked(hex) }
     }
 
+    /// Parses the string representation into a ID.
+    ///
+    /// This returns an `ID` if the string was valid, else None.
     pub fn from_hex(hex: &[u8]) -> Option<ID> {
         if hex.len() != Self::hash_size() * 2 {
             return None;
@@ -100,10 +115,14 @@ pub struct Hasher {
 }
 
 impl Hasher {
+    /// Build a new `Hasher`.
+    ///
+    /// Feed it data using the `Write` trait.
     pub fn new() -> Hasher {
         Hasher { hasher: Sha256::new() }
     }
 
+    /// Consume this `Hasher` and return an `ID`.
     pub fn result(self) -> ID {
         let mut bytes = [0u8; 32];
         bytes.copy_from_slice(self.hasher.result().as_slice());
@@ -122,12 +141,17 @@ impl Write for Hasher {
     }
 }
 
+/// A convenient adapter to hash while writing.
+///
+/// Everything written on this object will be forwarded to the given object,
+/// while computing a hash.
 pub struct HasherWriter<W: Write> {
     hasher: Hasher,
     writer: W,
 }
 
 impl<W: Write> HasherWriter<W> {
+    /// Build a new `HasherWrite` that will write on the given object.
     pub fn new(writer: W) -> HasherWriter<W> {
         HasherWriter {
             hasher: Hasher::new(),
@@ -135,6 +159,9 @@ impl<W: Write> HasherWriter<W> {
         }
     }
 
+    /// Consume this object and returns the `ID` computed from hashing.
+    ///
+    /// The internal `Write` object given at construction is dropped.
     pub fn result(self) -> ID {
         self.hasher.result()
     }

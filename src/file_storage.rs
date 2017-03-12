@@ -1,3 +1,8 @@
+//! Blob storage implementation that stores blobs as files.
+//!
+//! This stores each blob in a separate file, and lists them by listing
+//! directory contents. It is very similar to Git's loose objects directory.
+
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -6,15 +11,21 @@ use common::{ID, EnumerableBlobStorage, BlobStorage};
 use errors::{self, Error};
 use hash::Hasher;
 
+/// Filesystem-based blob storage implementation.
+///
+/// This stores each blob in a separate file, and lists them by listing
+/// directory contents. It is very similar to Git's loose object directory.
 pub struct FileBlobStorage {
     path: PathBuf,
 }
 
 impl FileBlobStorage {
+    /// Opens the blob storage from a path.
     pub fn open<P: AsRef<Path>>(path: P) -> FileBlobStorage {
         FileBlobStorage { path: path.as_ref().to_path_buf() }
     }
 
+    /// Builds the path to an object from its ID.
     fn filename(&self, id: &ID) -> PathBuf {
         let mut path = self.path.to_path_buf();
         let hex = id.hex();
@@ -117,6 +128,13 @@ impl EnumerableBlobStorage for FileBlobStorage {
     }
 }
 
+/// Iterator on blobs returned by `FileBlobStorage::list_blobs()`.
+///
+/// Simply uses `Path::read_dir()` to list directory contents and parse the
+/// paths back into `ID`s.
+///
+/// Note that filesystem operations can fail. If during iteration, one element
+/// is `Err(...)`, you should abort iteration.
 pub struct FileBlobIterator {
     first: fs::ReadDir,
     first_val: [u8; 2],

@@ -1,3 +1,10 @@
+//! Serialization & deserialization code for DHStore objects.
+//!
+//! This contains the `serialize()` and `deserialize()` methods that convert
+//! objects to and from bytes. The `hash_object()` function, that takes object
+//! content and hash it to tack on it the `ID` that makes an `Object`, is also
+//! here, since the same serialization format is used for hashing.
+
 use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 
@@ -80,6 +87,7 @@ fn write_data<W: Write>(out: &mut W, data: &ObjectData)
     Ok(())
 }
 
+/// Write out the object on the given `Write` handle.
 pub fn serialize<W: Write>(mut out: &mut W, object: &Object) -> io::Result<()> {
     out.write_all(b"d\
                     1:d12:dhstore_0001\
@@ -220,6 +228,7 @@ fn convert_property(item: Item) -> Option<Property> {
     None
 }
 
+/// Read an Object from the given `Read` handle.
 pub fn deserialize<R: Read>(mut read: R) -> io::Result<Object> {
     let obj = read_item(&mut read)?;
     if read.read(&mut [0u8])? != 0 {
@@ -284,6 +293,7 @@ pub fn deserialize<R: Read>(mut read: R) -> io::Result<Object> {
     Ok(object)
 }
 
+/// Hash the given object data, and tack on the digest to form an `Object`.
 pub fn hash_object(data: ObjectData) -> Object {
     let mut hasher = Hasher::new();
     write_data(&mut hasher, &data).unwrap();

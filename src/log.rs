@@ -1,3 +1,8 @@
+//! Log utilities.
+//!
+//! This provides the log implementation that uses `termcolor` to log to the
+//! terminal with colors.
+
 use std::io::Write;
 use std::sync::Mutex;
 
@@ -5,6 +10,10 @@ use log_crate::{Log, LogLevel, LogMetadata, LogRecord,
                 SetLoggerError, set_logger};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
+/// The logger that writes to stderr.
+///
+/// This is an internal object passed to the `log` crate; you only have to use
+/// the `init()` function to make this work.
 struct StderrLogger {
     stderr: Mutex<StandardStream>,
     level: LogLevel,
@@ -43,6 +52,7 @@ impl Log for StderrLogger {
     }
 }
 
+/// Sets up the logger object to log on stderr with the given log level.
 pub fn init(level: LogLevel) -> Result<(), SetLoggerError> {
     set_logger(|max_log_level| {
         max_log_level.set(level.to_log_level_filter());

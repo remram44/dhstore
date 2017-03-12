@@ -1,6 +1,14 @@
+//! # Error definitions
+//!
+//! This module contains the `Error` and `Result` types used throughout the
+//! whole software.
+
 use std::fmt::{Display, Formatter};
 use std::io;
 
+/// An error from dhstore.
+///
+/// This represents all the errors that can happen anywhere.
 #[derive(Debug)]
 pub enum Error {
     IoError(&'static str, io::Error),
@@ -50,4 +58,5 @@ impl From<(&'static str, io::Error)> for Error {
     }
 }
 
+/// Alias for the `Result` type with an error of our `Error` type.
 pub type Result<T> = ::std::result::Result<T, Error>;
