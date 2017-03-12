@@ -83,7 +83,7 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
         Ok((id, size))
     }
 
-    pub fn add_dir<P: AsRef<Path>>(&mut self, path: P)
+    fn add_dir<P: AsRef<Path>>(&mut self, path: P)
         -> errors::Result<ID>
     {
         let path = path.as_ref();
