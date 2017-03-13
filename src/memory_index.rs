@@ -249,16 +249,23 @@ impl MemoryIndex {
     fn walk(&mut self, collect: bool) -> errors::Result<HashSet<ID>> {
         let mut alive = HashMap::new(); // ids => refcount
         let mut live_blobs = HashSet::new(); // ids
-        let mut open = VecDeque::new(); // objects
-        match self.objects.get(&self.root) {
-            None => error!("Root is missing: {}", self.root),
-            Some(obj) => open.push_front(obj),
+        let mut open = VecDeque::new(); // ids
+        if self.objects.get(&self.root).is_none() {
+            error!("Root is missing: {}", self.root);
+        } else {
+            open.push_front(self.root.clone());
         }
-        while let Some(object) = open.pop_front() {
-            let id = &object.object.id;
+        while let Some(id) = open.pop_front() {
             debug!("Walking, open={}, alive={}/{}, id={}",
                    open.len(), alive.len(), self.objects.len(), id);
-            if let Some(v) = alive.get_mut(id) {
+            let object = match self.objects.get(&id) {
+                Some(o) => o,
+                None => {
+                    info!("Don't have object {}", id);
+                    continue;
+                }
+            };
+            if let Some(v) = alive.get_mut(&id) {
                 *v += 1;
                 debug!("  already alive, incrementing refs to {}", v);
                 continue;
@@ -267,9 +274,7 @@ impl MemoryIndex {
             let mut handle = |value: &Property| {
                 match value {
                     &Property::Reference(ref id) => {
-                        if let Some(obj) = self.objects.get(id){
-                            open.push_back(obj);
-                        }
+                        open.push_back(id.clone());
                     }
                     &Property::Blob(ref id) => {
                         if collect {
@@ -318,8 +323,14 @@ impl MemoryIndex {
         }
         info!("Found {}/{} live objects", alive.len(), self.objects.len());
         if collect {
-            // TODO: Collect dead objects
-            unimplemented!()
+            let dead_objects = self.objects.keys()
+                .filter(|id| !alive.contains_key(id))
+                .cloned()
+                .collect::<Vec<_>>();
+            info!("Removing {} dead objects", dead_objects.len());
+            for id in dead_objects {
+                self.objects.remove(&id);
+            }
         }
         Ok(live_blobs)
     }
