@@ -3,6 +3,7 @@
 extern crate chunker;
 #[macro_use]
 extern crate log as log_crate;
+extern crate rand;
 extern crate sha2;
 extern crate termcolor;
 
@@ -15,12 +16,13 @@ mod memory_index;
 mod serialize;
 
 use chunker::{ChunkInput, chunks};
-pub use common::{ID, Dict, List, Property, ObjectData, Object,
+pub use common::{HASH_SIZE, ID, Dict, List, Property, ObjectData, Object,
                  BlobStorage, EnumerableBlobStorage, ObjectIndex};
 use errors::Error;
 pub use memory_index::MemoryIndex;
 pub use file_storage::FileBlobStorage;
 
+use rand::Rng;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::mem::swap;
@@ -244,6 +246,14 @@ impl<S: EnumerableBlobStorage, I: ObjectIndex> Store<S, I> {
     }
 }
 
+pub fn permanode(mut data: Dict) -> Object {
+    let mut random = [0u8; HASH_SIZE];
+    rand::thread_rng().fill_bytes(&mut random);
+    let random = ID::from_slice(&random).unwrap().str();
+    data.insert("random".into(), Property::String(random));
+    serialize::hash_object(ObjectData::Dict(data))
+}
+
 /// Opens a directory.
 ///
 /// This uses the `FileBlobStorage` and `MemoryIndex` to create a `Store` from a
@@ -263,7 +273,7 @@ pub fn open<P: AsRef<Path>>(path: P)
         let mut buf = Vec::new();
         fp.read_to_end(&mut buf)
             .map_err(|e| ("Error reading root config file", e))?;
-        ID::from_slice(&buf)
+        ID::from_str(&buf)
             .ok_or(Error::CorruptedStore("Invalid root config file"))?
     };
 
@@ -317,11 +327,24 @@ pub fn create<P: AsRef<Path>>(path: P) -> errors::Result<()> {
             .create_new(true)
             .open(path.join("root"))
             .map_err(|e| ("Couldn't open root config", e))?;
-        // TODO : Write root config
-        fp.write_all(b"\x00\x01\x02\x03\x04\x05\x06\x07\
-                       \x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\
-                       \x10\x11\x12\x13\x14\x15\x16\x17\
-                       \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f")
+
+        // Log permanode
+        let mut log = Dict::new();
+        log.insert("type".into(), Property::String("set".into()));
+        log.insert("order".into(), Property::String("date".into()));
+        let log = permanode(log);
+
+        // Config object
+        let mut config = Dict::new();
+        config.insert("log".into(), Property::Reference(log.id.clone()));
+        let config = serialize::hash_object(ObjectData::Dict(config));
+        let config_id = config.id.str();
+
+        MemoryIndex::create(path.join("objects"), vec![log, config].iter())
+            .map_err(|e| ("Couldn't write objects", e))?;
+
+        // Write root config
+        fp.write_all(config_id.as_bytes())
             .map_err(|e| ("Couldn't write root config", e))?;
     }
 

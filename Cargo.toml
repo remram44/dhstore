@@ -12,5 +12,6 @@ doc = false
 chunker = { path = "chunker" }
 clap = "2.20"
 log = "0.3"
+rand = "0.3"
 sha2 = "0.4"
 termcolor = "0.3"

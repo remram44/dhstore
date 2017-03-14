@@ -6,7 +6,7 @@
 use std::collections::{BTreeMap, HashSet};
 
 use errors;
-pub use hash::ID;
+pub use hash::{HASH_SIZE, ID};
 
 /// Values that appear in an object's metadata.
 ///

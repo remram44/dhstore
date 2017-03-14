@@ -7,9 +7,9 @@
 //! some point.
 
 use log_crate::LogLevel;
-use std::borrow::Cow;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::{self, File, OpenOptions};
+use std::io;
 use std::path::{PathBuf, Path};
 
 use common::{ID, Object, ObjectData, ObjectIndex, Property};
@@ -165,6 +165,30 @@ impl MemoryIndex {
         Ok(index)
     }
 
+    pub fn create<'a, P: AsRef<Path>, I: Iterator<Item=&'a Object>>(
+            path: P, objects: I)
+        -> io::Result<()>
+    {
+        for object in objects {
+            MemoryIndex::write_object(path.as_ref(), object)?;
+        }
+        Ok(())
+    }
+
+    fn write_object(dir: &Path, object: &Object) -> io::Result<()> {
+        let hashstr = object.id.str();
+        let mut path = dir.join(&hashstr[..4]);
+        if !path.exists() {
+            fs::create_dir(&path)?;
+        }
+        path.push(&hashstr[4..]);
+        let mut fp = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)?;
+        serialize::serialize(&mut fp, &object)
+    }
+
     /// Utility to insert a new object in the store while taking care of refs.
     ///
     /// Insert the object, sets its reference count from the back reference map,
@@ -318,20 +342,8 @@ impl ObjectIndex for MemoryIndex {
         let id = object.id.clone();
         if !self.objects.contains_key(&id) {
             info!("Adding object to index: {}", id);
-            let hashstr = id.str();
-            let mut path = self.path.join(&hashstr[..4]);
-            if !path.exists() {
-                fs::create_dir(&path)
-                    .map_err(|e| ("Can't create object directory", e))?;
-            }
-            path.push(&hashstr[4..]);
-            let mut fp = OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&path)
-                .map_err(|e| ("Can't open object file", e))?;
-            serialize::serialize(&mut fp, &object)
-                .map_err(|e| ("Error writing object to disk", e))?;
+            MemoryIndex::write_object(&self.path, &object)
+                .map_err(|e| ("Couldn't write object to disk", e))?;
             self.insert_object_do_backrefs(object);
         }
         Ok(id)
