@@ -5,7 +5,7 @@
 
 use sha2::{Digest, Sha256};
 use std::fmt;
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::hash;
 
 /// Identifier for an object.
@@ -183,16 +183,20 @@ impl Write for Hasher {
 /// Everything written on this object will be forwarded to the given object,
 /// while computing a hash.
 pub struct HasherWriter<W: Write> {
-    hasher: Hasher,
     writer: W,
+    hasher: Hasher,
 }
 
 impl<W: Write> HasherWriter<W> {
-    /// Build a new `HasherWrite` that will write on the given object.
+    /// Build a new `HasherWriter` that will write on the given object.
     pub fn new(writer: W) -> HasherWriter<W> {
+        HasherWriter::with_hasher(writer, Hasher::new())
+    }
+
+    pub fn with_hasher(writer: W, hasher: Hasher) -> HasherWriter<W> {
         HasherWriter {
-            hasher: Hasher::new(),
             writer: writer,
+            hasher: hasher,
         }
     }
 
@@ -219,6 +223,44 @@ impl<W: Write> Write for HasherWriter<W> {
         self.writer.write_all(buf)?;
         self.hasher.write(&buf).unwrap();
         Ok(())
+    }
+}
+
+/// A convenient adapter to hash while reading.
+///
+/// Read operations on this object will be forwarded to the given object,
+/// while computing a hash.
+pub struct HasherReader<R: Read> {
+    reader: R,
+    hasher: Hasher,
+}
+
+impl<R: Read> HasherReader<R> {
+    /// Build a new `HasherReader` that will read from the given object.
+    pub fn new(reader: R) -> HasherReader<R> {
+        HasherReader::with_hasher(reader, Hasher::new())
+    }
+
+    pub fn with_hasher(reader: R, hasher: Hasher) -> HasherReader<R> {
+        HasherReader {
+            reader: reader,
+            hasher: hasher,
+        }
+    }
+
+    /// Consume this object and returns the `ID` computed from hashing.
+    ///
+    /// The internal `Read` object given at construction is dropped.
+    pub fn result(self) -> ID {
+        self.hasher.result()
+    }
+}
+
+impl<R: Read> Read for HasherReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let len = self.reader.read(buf)?;
+        self.hasher.write(&buf[..len]).unwrap();
+        Ok(len)
     }
 }
 

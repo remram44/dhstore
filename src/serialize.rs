@@ -9,7 +9,7 @@ use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 
 use common::{ID, Dict, List, Object, ObjectData, Property};
-use hash::{Hasher, HasherWriter};
+use hash::{Hasher, HasherReader, HasherWriter};
 
 // Dictionary: d<id><key><value><key><value>...e
 // List: l<value><value>...e
@@ -17,17 +17,13 @@ use hash::{Hasher, HasherWriter};
 // Integer: i42e
 // Reference: {"ref": d} = d3:ref64:abcdef...e
 // Blob: {"blob": id} = d4:blob64:abcdef...e
-// Object: {"d": "dhstore_0001", "h": id, "i": "l/o/p/c", "r": ...}
-//   "i":
-//     "o": object, "r": {...}
-//     "l": list, "r": [...]
-//     "p": permanode, "r": {...}
-//     "c": claim, "r": {...}
+// Object: {"d": "dhstore_0001", "r": ...}
+//   r: either a list or a dict
 
 macro_rules! invalid {
     () => {
         {
-            error!("invalid! with no message");
+            error!("invalid object");
             return Err(io::ErrorKind::InvalidData.into())
         }
     };
@@ -69,7 +65,7 @@ fn write_data<W: Write>(out: &mut W, data: &ObjectData)
 {
     match data {
         &ObjectData::Dict(ref d) => {
-            out.write_all(b"1:i1:o1:rd")?;
+            out.write_all(b"d")?;
             for (key, value) in d {
                 write_str(out, key)?;
                 write_property(out, value)?;
@@ -77,7 +73,7 @@ fn write_data<W: Write>(out: &mut W, data: &ObjectData)
             out.write_all(b"e")?;
         }
         &ObjectData::List(ref l) => {
-            out.write_all(b"1:i1:l1:rl")?;
+            out.write_all(b"l")?;
             for value in l {
                 write_property(out, value)?;
             }
@@ -91,10 +87,11 @@ fn write_data<W: Write>(out: &mut W, data: &ObjectData)
 pub fn serialize<W: Write>(mut out: &mut W, object: &Object) -> io::Result<()> {
     out.write_all(b"d\
                     1:d12:dhstore_0001\
-                    1:h")?;
-    write_str(out, &object.id.str())?;
+                    1:r")?;
     if cfg!(debug_assertions) || cfg!(test) {
-        let mut hasherwriter = HasherWriter::new(&mut out);
+        let mut hasher = Hasher::new();
+        hasher.write_all(b"object\n").unwrap();
+        let mut hasherwriter = HasherWriter::with_hasher(&mut out, hasher);
         write_data(&mut hasherwriter, &object.data)?;
         if hasherwriter.result() != object.id {
             panic!("serializing an object yielded a different ID");
@@ -142,14 +139,19 @@ fn read_item<R: Read>(read: &mut R) -> io::Result<Item> {
                     Item::String(s) => s,
                     _ => invalid!("invalid dict key"),
                 };
+                if let Some(last) = dict.keys().next_back() {
+                    if last > &key {
+                        invalid!("dict key {:?} is out of order", key);
+                    }
+                }
+                if dict.get(&key).is_some() {
+                    invalid!("duplicate key {:?} in dict", key);
+                }
                 let value = match read_item(read)? {
                     Item::End => invalid!("missing value for key {:?} in dict",
                                           key),
                     v => v,
                 };
-                if dict.get(&key).is_some() {
-                    invalid!("duplicate key {:?} in dict", key);
-                }
                 dict.insert(key, value);
             }
         }
@@ -228,33 +230,43 @@ fn convert_property(item: Item) -> Option<Property> {
     None
 }
 
+fn expect<R: Read>(mut read: R, what: &[u8]) -> io::Result<()> {
+    let mut buf = [0u8; 4];
+    let buf = &mut buf[0..what.len()]; // FIXME: rust-lang/rfcs#618
+    read.read_exact(buf)?;
+    if buf != what {
+        invalid!();
+    }
+    Ok(())
+}
+
 /// Read an Object from the given `Read` handle.
 pub fn deserialize<R: Read>(mut read: R) -> io::Result<Object> {
+    expect(&mut read, b"d1:d")?;
     let obj = read_item(&mut read)?;
+    match obj {
+        Item::String(s) => {
+            if s != "dhstore_0001" {
+                invalid!("unknown format {:?}", s);
+            }
+        }
+        _ => invalid!(),
+    }
+    expect(&mut read, b"1:r")?;
+    let (obj, id) = {
+        let mut hasher = Hasher::new();
+        hasher.write_all(b"object\n").unwrap();
+        let mut reader = HasherReader::with_hasher(&mut read, hasher);
+        let obj = read_item(&mut reader)?;
+        (obj, reader.result())
+    };
+    expect(&mut read, b"e")?;
     if read.read(&mut [0u8])? != 0 {
         invalid!("trailing bytes");
     }
-    let mut obj = match obj {
-        Item::Dict(d) => d,
-        _ => {
-            invalid!("not a dict");
-        }
-    };
-    if obj.keys().collect::<Vec<_>>() != &["d", "h", "i", "r"] {
-        invalid!("unknown keys in dict");
-    }
-    if obj.get("d").and_then(Item::str) != Some("dhstore_0001") {
-        invalid!("unknown format");
-    }
-    let id = match obj.get("h").and_then(Item::str)
-        .map(str::as_bytes).and_then(ID::from_str)
-    {
-        Some(id) => id,
-        None => invalid!("invalid ID"),
-    };
-    let data = match (obj.remove("i").as_ref().and_then(Item::str),
-                      obj.remove("r").unwrap()) {
-        (Some("o"), Item::Dict(d)) => {
+
+    let data = match obj {
+        Item::Dict(d) => {
             let mut dict = Dict::new();
             for (k, v) in d.into_iter() {
                 match convert_property(v) {
@@ -264,8 +276,7 @@ pub fn deserialize<R: Read>(mut read: R) -> io::Result<Object> {
             }
             ObjectData::Dict(dict)
         }
-        (Some("o"), _) => invalid!("object is 'o' but not a dict"),
-        (Some("l"), Item::List(l)) => {
+        Item::List(l) => {
             let mut list = List::new();
             for v in l.into_iter() {
                 match convert_property(v) {
@@ -275,27 +286,19 @@ pub fn deserialize<R: Read>(mut read: R) -> io::Result<Object> {
             }
             ObjectData::List(list)
         }
-        (Some("l"), _) => invalid!("object is 'l' but not a list"),
-        (Some(i), _) => invalid!("unknown object type '{}'", i),
         _ => invalid!("invalid object type"),
     };
     let object = Object {
         id: id,
         data: data,
     };
-    if cfg!(debug_assertions) || cfg!(test) {
-        let mut hasher = Hasher::new();
-        write_data(&mut hasher, &object.data).unwrap();
-        if hasher.result() != object.id {
-            panic!("deserializing an object yielded a different ID");
-        }
-    }
     Ok(object)
 }
 
 /// Hash the given object data, and tack on the digest to form an `Object`.
 pub fn hash_object(data: ObjectData) -> Object {
     let mut hasher = Hasher::new();
+    hasher.write_all(b"object\n").unwrap();
     write_data(&mut hasher, &data).unwrap();
     Object {
         id: hasher.result(),
@@ -320,9 +323,6 @@ mod tests {
     const TEST_DICT: &'static [u8] =
         b"d\
           1:d12:dhstore_0001\
-          1:h44:DM9kOjgeWVofsWw3hKHdT0\
-          MjbkQ7sdyHHpVKW295Wwhm\
-          1:i1:o\
           1:rd\
           6:camera\
           d3:ref44:DB11111111111111111111\
@@ -345,8 +345,8 @@ mod tests {
         properties.insert("people".into(), Property::Integer(5));
         properties.insert("camera".into(), Property::Reference(fake_id(1)));
         properties.insert("data".into(), Property::Blob(fake_id(2)));
-        let hash = ID::from_str(b"DM9kOjgeWVofsWw3hKHdT0\
-                                  MjbkQ7sdyHHpVKW295Wwhm").unwrap();
+        let hash = ID::from_str(b"DNbf17WpaH2XJC5tRWYhMO\
+                                  TQdMt2TSutfKAp3wnKoIV7").unwrap();
         let obj = hash_object(ObjectData::Dict(properties));
         assert_eq!(obj.id, hash);
         let mut serialized = Vec::new();
@@ -356,15 +356,15 @@ mod tests {
 
     #[test]
     fn test_deserialize_dict() {
-        deserialize(Cursor::new(TEST_DICT)).unwrap();
+        let obj = deserialize(Cursor::new(TEST_DICT)).unwrap();
+        assert_eq!(obj.id,
+                   ID::from_str(b"DNbf17WpaH2XJC5tRWYhMO\
+                                  TQdMt2TSutfKAp3wnKoIV7").unwrap());
     }
 
     const TEST_LIST: &'static [u8] =
         b"d\
           1:d12:dhstore_0001\
-          1:h44:DBh1wqsabunRvZ7ktPcOqB\
-          nN25ftPxXVoko_0IxhuWQH\
-          1:i1:l\
           1:rl\
           3:cvs\
           10:subversion\
@@ -381,8 +381,8 @@ mod tests {
             .map(|&s: &&str| -> String { s.into() })
             .map(Property::String)
             .collect();
-        let hash = ID::from_str(b"DBh1wqsabunRvZ7ktPcOqB\
-                                  nN25ftPxXVoko_0IxhuWQH").unwrap();
+        let hash = ID::from_str(b"DOdY4OwCEf6AouK4eK6fRs\
+                                  mG6JiGoKjfe-fOJ-I29H1D").unwrap();
         let obj = hash_object(ObjectData::List(properties));
         assert_eq!(obj.id, hash);
         let mut serialized = Vec::new();
@@ -392,6 +392,9 @@ mod tests {
 
     #[test]
     fn test_deserialize_list() {
-        deserialize(Cursor::new(TEST_LIST)).unwrap();
+        let obj = deserialize(Cursor::new(TEST_LIST)).unwrap();
+        assert_eq!(obj.id,
+                   ID::from_str(b"DOdY4OwCEf6AouK4eK6fRs\
+                                  mG6JiGoKjfe-fOJ-I29H1D").unwrap());
     }
 }

@@ -52,6 +52,7 @@ impl BlobStorage for FileBlobStorage {
 
     fn add_blob(&mut self, blob: &[u8]) -> errors::Result<ID> {
         let mut hasher = Hasher::new();
+        hasher.write_all(b"blob\n").unwrap();
         hasher.write_all(blob).unwrap();
         let id = hasher.result();
         self.add_known_blob(&id, blob)?;
@@ -97,6 +98,7 @@ impl BlobStorage for FileBlobStorage {
                         Err(e) => error!("Error getting blob: {}", e),
                         Ok(None) => error!("Error gettting blob"),
                         Ok(Some(blob)) => {
+                            hasher.write_all(b"blob\n").unwrap();
                             hasher.write_all(&blob).unwrap();
                             if id != hasher.result() {
                                 warn!("Blob has the wrong hash: {:?}",
