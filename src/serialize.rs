@@ -68,9 +68,7 @@ fn write_data<W: Write>(out: &mut W, data: &ObjectData)
     -> io::Result<()>
 {
     match data {
-        &ObjectData::Dict(ref d) |
-        &ObjectData::Permanode(ref d) |
-        &ObjectData::Claim(ref d) => {
+        &ObjectData::Dict(ref d) => {
             out.write_all(b"1:i1:o1:rd")?;
             for (key, value) in d {
                 write_str(out, key)?;

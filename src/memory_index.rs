@@ -146,7 +146,7 @@ impl MemoryIndex {
                     let log_obj = index.get_object(id)?
                         .ok_or(Error::CorruptedStore("Missing log object"))?;
                     match log_obj.data {
-                        ObjectData::Permanode(_) => {
+                        ObjectData::Dict(_) => {
                             debug!("Activated log: {}", id);
                         }
                         _ => {
@@ -205,9 +205,7 @@ impl MemoryIndex {
                 self.backlinks.insert(target.clone(), set);
             };
             match object.data {
-                ObjectData::Dict(ref dict) |
-                ObjectData::Permanode(ref dict) |
-                ObjectData::Claim(ref dict) => {
+                ObjectData::Dict(ref dict) => {
                     for (k, v) in dict {
                         match v {
                             &Property::Reference(ref id) => {
@@ -294,28 +292,6 @@ impl MemoryIndex {
                 ObjectData::List(ref list) => {
                     debug!("  is list, {} values", list.len());
                     for v in list {
-                        handle(v);
-                    }
-                }
-                ObjectData::Permanode(ref dict) => {
-                    debug!("  is permanode, {} values", dict.len());
-                    for (_, v) in dict {
-                        handle(v);
-                    }
-                }
-                ObjectData::Claim(ref dict) => {
-                    fn print_id(v: Option<&Property>) -> Cow<str> {
-                        match v {
-                            Some(&Property::Reference(ref id)) => id.str().into(),
-                            Some(_) => "#invalid#".into(),
-                            None => "#unset#".into(),
-                        }
-                    }
-                    debug!("  is claim, {} permanode, {} value, {} values",
-                           print_id(dict.get("n")),
-                           print_id(dict.get("v")),
-                           dict.len());
-                    for (_, v) in dict {
                         handle(v);
                     }
                 }

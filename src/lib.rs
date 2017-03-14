@@ -210,20 +210,11 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
                     indent(level);
                     print!("]");
                 }
-                ObjectData::Permanode(_) => {
-                    print!("{} permanode (TODO)", object.id);
-                    // TODO: get value for permanode and recurse
-                }
-                ObjectData::Claim(_) => {
-                    print!("{} claim", object.id);
-                }
             }
         } else {
             match object.data {
                 ObjectData::Dict(_) => println!("{} {{ ... }}", object.id),
                 ObjectData::List(_) => println!("{} [ ... ]", object.id),
-                ObjectData::Permanode(_) => println!("{} permanode", object.id),
-                ObjectData::Claim(_) => println!("{} claim", object.id),
             }
         }
         Ok(())

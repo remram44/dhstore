@@ -25,16 +25,9 @@ pub type List = Vec<Property>;
 /// The types of object known to the index.
 ///
 /// Object is simply this structure with an `ID` tacked on.
-///
-/// Dict is an immutable key-value dictionary with unique string keys.
-/// List is an immutable sequence of values.
-/// Permanode is a mutable node whose content can be set by claims.
-/// Claim is a mutation message associating a permanode to a value.
 pub enum ObjectData {
     Dict(Dict),
     List(List),
-    Permanode(Dict),
-    Claim(Dict),
 }
 
 /// A schema object, i.e. either a dictionary or a list of properties.
