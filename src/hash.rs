@@ -145,6 +145,7 @@ impl fmt::Debug for ID {
 ///
 /// Abstracted to make it easier to swap it out, or use multiple hashes,
 /// but there is no current plan to make the lib generic on this.
+#[derive(Default)]
 pub struct Hasher {
     hasher: Sha256,
 }
@@ -209,7 +210,7 @@ impl<W: Write> HasherWriter<W> {
 impl<W: Write> Write for HasherWriter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let len = self.writer.write(buf)?;
-        self.hasher.write(&buf[..len]).unwrap();
+        self.hasher.write_all(&buf[..len]).unwrap();
         Ok(len)
     }
 
@@ -219,7 +220,7 @@ impl<W: Write> Write for HasherWriter<W> {
 
     fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
         self.writer.write_all(buf)?;
-        self.hasher.write(&buf).unwrap();
+        self.hasher.write_all(buf).unwrap();
         Ok(())
     }
 }
@@ -257,7 +258,7 @@ impl<R: Read> HasherReader<R> {
 impl<R: Read> Read for HasherReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let len = self.reader.read(buf)?;
-        self.hasher.write(&buf[..len]).unwrap();
+        self.hasher.write_all(&buf[..len]).unwrap();
         Ok(len)
     }
 }

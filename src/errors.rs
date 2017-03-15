@@ -21,14 +21,14 @@ impl Display for Error {
            f: &mut Formatter)
            -> ::std::result::Result<(), ::std::fmt::Error> {
         match *self {
-            Error::IoError(ref msg, ref err) => {
+            Error::IoError(msg, ref err) => {
                 write!(f, "I/O error: {}\n", msg)?;
                 err.fmt(f)
             }
-            Error::CorruptedStore(ref msg) => {
+            Error::CorruptedStore(msg) => {
                 write!(f, "Corrupted store: {}", msg)
             }
-            Error::InvalidInput(ref msg) => {
+            Error::InvalidInput(msg) => {
                 write!(f, "Invalid input: {}", msg)
             }
         }

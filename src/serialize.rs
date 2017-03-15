@@ -52,19 +52,19 @@ fn write_str<W: Write>(out: &mut W, string: &str) -> io::Result<()> {
 }
 
 fn write_property<W: Write>(out: &mut W, prop: &Property) -> io::Result<()> {
-    match prop {
-        &Property::String(ref s) => write_str(out, s),
-        &Property::Integer(i) => write!(out, "i{}e", i),
-        &Property::Reference(ref id) => write_ref(out, id, false),
-        &Property::Blob(ref id) => write_ref(out, id, true),
+    match *prop {
+        Property::String(ref s) => write_str(out, s),
+        Property::Integer(i) => write!(out, "i{}e", i),
+        Property::Reference(ref id) => write_ref(out, id, false),
+        Property::Blob(ref id) => write_ref(out, id, true),
     }
 }
 
 fn write_data<W: Write>(out: &mut W, data: &ObjectData)
     -> io::Result<()>
 {
-    match data {
-        &ObjectData::Dict(ref d) => {
+    match *data {
+        ObjectData::Dict(ref d) => {
             out.write_all(b"d")?;
             for (key, value) in d {
                 write_str(out, key)?;
@@ -72,7 +72,7 @@ fn write_data<W: Write>(out: &mut W, data: &ObjectData)
             }
             out.write_all(b"e")?;
         }
-        &ObjectData::List(ref l) => {
+        ObjectData::List(ref l) => {
             out.write_all(b"l")?;
             for value in l {
                 write_property(out, value)?;
@@ -268,7 +268,7 @@ pub fn deserialize<R: Read>(mut read: R) -> io::Result<Object> {
     let data = match obj {
         Item::Dict(d) => {
             let mut dict = Dict::new();
-            for (k, v) in d.into_iter() {
+            for (k, v) in d {
                 match convert_property(v) {
                     Some(v) => { dict.insert(k, v); }
                     None => invalid!("invalid dict value"),
@@ -278,7 +278,7 @@ pub fn deserialize<R: Read>(mut read: R) -> io::Result<Object> {
         }
         Item::List(l) => {
             let mut list = List::new();
-            for v in l.into_iter() {
+            for v in l {
                 match convert_property(v) {
                     Some(v) => list.push(v),
                     None => invalid!("invalid list value"),

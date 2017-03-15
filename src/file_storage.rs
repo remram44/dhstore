@@ -193,11 +193,11 @@ impl Iterator for FileBlobIterator {
             id[..4].clone_from_slice(&self.first_val);
             let name = entry.file_name()
                 .into_string();
-            if let Err(_) = name {
-                return Some(Err(Error::CorruptedStore(
-                    "Second-level entry in blobs is invalid unicode")));
-            }
-            let name = name.unwrap();
+            let name = match name {
+                Err(_) => return Some(Err(Error::CorruptedStore(
+                    "Second-level entry in blobs is invalid unicode"))),
+                Ok(n) => n,
+            };
             let slice = name.as_bytes();
             if slice.len() != 40 {
                 return Some(Err(Error::CorruptedStore(

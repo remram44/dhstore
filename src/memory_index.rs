@@ -186,7 +186,7 @@ impl MemoryIndex {
             .write(true)
             .create_new(true)
             .open(&path)?;
-        serialize::serialize(&mut fp, &object)
+        serialize::serialize(&mut fp, object)
     }
 
     /// Utility to insert a new object in the store while taking care of refs.
@@ -231,25 +231,19 @@ impl MemoryIndex {
             match object.data {
                 ObjectData::Dict(ref dict) => {
                     for (k, v) in dict {
-                        match v {
-                            &Property::Reference(ref id) => {
-                                insert(id,
-                                       Backkey::Key(k.clone()),
-                                       object.id.clone());
-                            }
-                            _ => {}
+                        if let Property::Reference(ref id) = *v {
+                            insert(id,
+                                   Backkey::Key(k.clone()),
+                                   object.id.clone());
                         }
                     }
                 }
                 ObjectData::List(ref list) => {
                     for (k, v) in list.into_iter().enumerate() {
-                        match v {
-                            &Property::Reference(ref id) => {
-                                insert(id,
-                                       Backkey::Index(k),
-                                       object.id.clone());
-                            }
-                            _ => {}
+                        if let Property::Reference(ref id) = *v {
+                            insert(id,
+                                   Backkey::Index(k),
+                                   object.id.clone());
                         }
                     }
                 }
@@ -294,11 +288,11 @@ impl MemoryIndex {
             }
             alive.insert(id, 1);
             let mut handle = |value: &Property| {
-                match value {
-                    &Property::Reference(ref id) => {
+                match *value {
+                    Property::Reference(ref id) => {
                         open.push_back(id.clone());
                     }
-                    &Property::Blob(ref id) => {
+                    Property::Blob(ref id) => {
                         if collect {
                             live_blobs.insert(id.clone());
                         }
@@ -309,7 +303,7 @@ impl MemoryIndex {
             match object.object.data {
                 ObjectData::Dict(ref dict) => {
                     debug!("  is dict, {} values", dict.len());
-                    for (_, v) in dict {
+                    for v in dict.values() {
                         handle(v);
                     }
                 }

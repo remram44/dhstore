@@ -43,7 +43,7 @@ impl Log for StderrLogger {
                 LogLevel::Debug => Color::Cyan,
                 LogLevel::Trace => Color::Blue,
             };
-            stderr.set_color(&ColorSpec::new().set_fg(Some(color))).unwrap();
+            stderr.set_color(ColorSpec::new().set_fg(Some(color))).unwrap();
             writeln!(stderr, "{} - {}", record.target(), record.args())
                 .unwrap();
             stderr.reset().unwrap();

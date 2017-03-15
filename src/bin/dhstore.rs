@@ -111,11 +111,13 @@ fn run_command(command: &str, matches: &clap::ArgMatches)
     let get_store = ||
             -> dhstore::errors::Result<dhstore::Store<dhstore::FileBlobStorage,
                                        dhstore::MemoryIndex>> {
-        dhstore::open(matches.value_of_os("store").unwrap_or(".".as_ref()))
+        dhstore::open(matches.value_of_os("store")
+                      .unwrap_or_else(|| ".".as_ref()))
     };
     match command {
         "init" => {
-            let path = matches.value_of_os("store").unwrap_or(".".as_ref());
+            let path = matches.value_of_os("store")
+                .unwrap_or_else(|| ".".as_ref());
             dhstore::create(path)
         }
         "verify" => {

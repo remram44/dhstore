@@ -165,16 +165,16 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
                       level: usize)
         -> errors::Result<()>
     {
-        match property {
-            &Property::String(ref s) => print!("{:?}", s),
-            &Property::Integer(i) => print!("{}", i),
-            &Property::Reference(ref id) => {
+        match *property {
+            Property::String(ref s) => print!("{:?}", s),
+            Property::Integer(i) => print!("{}", i),
+            Property::Reference(ref id) => {
                 match self.get_object(id)? {
                     Some(obj) => self.print_obj_(obj, limit, level)?,
                     None => print!("{} #missing#", id),
                 }
             }
-            &Property::Blob(ref id) => print!("blob-{}", id),
+            Property::Blob(ref id) => print!("blob-{}", id),
         }
         Ok(())
     }
