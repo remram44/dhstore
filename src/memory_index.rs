@@ -7,7 +7,7 @@
 //! some point.
 
 use log_crate::LogLevel;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::fs::{self, File, OpenOptions};
 use std::io;
 use std::path::{PathBuf, Path};
@@ -59,8 +59,17 @@ impl Policy for KeepPolicy {
 /// dict, it is associated with a string key, and in a list, with an index.
 #[derive(PartialEq, Eq, Hash)]
 enum Backkey {
-    Index(usize),
+    /// Reference from a dict under this key.
     Key(String),
+    /// Reference from a list from this index.
+    Index(usize),
+    /// Reference from a permanode (referred object is a valid claim).
+    Claim,
+}
+
+struct Permanode {
+    sort_field: String,
+    claims: BTreeMap<Property, ID>,
 }
 
 fn insert_into_multimap<K: Clone + Eq + ::std::hash::Hash,
@@ -80,9 +89,16 @@ fn insert_into_multimap<K: Clone + Eq + ::std::hash::Hash,
 
 /// The in-memory index, that loads all objects from the disk on startup.
 pub struct MemoryIndex {
+    /// Directory where objects are stored on disk.
     path: PathBuf,
+    /// All objects, indexed by their ID.
     objects: HashMap<ID, Object>,
+    /// Back references: value is all references pointing to the key.
     backlinks: HashMap<ID, HashSet<(Backkey, ID)>>,
+    /// All claim objects, whether they are valid for permanode or not.
+    claims: HashMap<ID, HashSet<ID>>,
+    /// All permanodes, with valid associated claims.
+    permanodes: HashMap<ID, Permanode>,
     root: ID,
     log: Option<ID>,
     policy: Box<Policy>,
@@ -98,6 +114,8 @@ impl MemoryIndex {
             path: path.to_path_buf(),
             objects: HashMap::new(),
             backlinks: HashMap::new(),
+            claims: HashMap::new(),
+            permanodes: HashMap::new(),
             root: root.clone(),
             log: None,
             policy: Box::new(KeepPolicy::new()),
@@ -127,7 +145,7 @@ impl MemoryIndex {
                     Ok(o) => o,
                 };
 
-                index.insert_object_do_backrefs(object);
+                index.insert_object_in_index(object);
             }
         }
 
@@ -190,20 +208,28 @@ impl MemoryIndex {
 
     /// Utility to insert a new object in the store.
     ///
-    /// Insert the object, indexing the back references.
-    fn insert_object_do_backrefs(&mut self, object: Object) {
-        // Record reverse references
+    /// Insert the object, indexing the back references, and parsing the object
+    /// to handle permanodes.
+    fn insert_object_in_index(&mut self, object: Object) {
+        assert!(!self.objects.contains_key(&object.id));
         {
+            // Record reverse references
+            // This is run on all values of type reference on the object,
+            // whether it is a list or a dict
             let mut insert = |target: &ID, key: Backkey, source: ID| {
                 if log_enabled!(LogLevel::Debug) {
                     match key {
+                        Backkey::Key(ref k) => {
+                            debug!("Reference {} -> {} ({})",
+                                   source, target, k);
+                        }
                         Backkey::Index(i) => {
                             debug!("Reference {} -> {} ({})",
                                    source, target, i);
                         }
-                        Backkey::Key(ref k) => {
-                            debug!("Reference {} -> {} ({})",
-                                   source, target, k);
+                        Backkey::Claim => {
+                            debug!("Reference {} -> {} (claim)",
+                                   source, target);
                         }
                     }
                 }
@@ -212,6 +238,9 @@ impl MemoryIndex {
                 insert_into_multimap(&mut self.backlinks,
                                      target, (key, source));
             };
+
+            // Go over the object, calling insert() above on all its values of
+            // type reference
             match object.data {
                 ObjectData::Dict(ref dict) => {
                     for (k, v) in dict {
@@ -234,7 +263,37 @@ impl MemoryIndex {
             }
         }
 
+        // Check for special objects
+        if let ObjectData::Dict(ref dict) = object.data {
+            match dict.get("dhstore_kind") {
+                Some(&Property::String(ref kind)) => match kind as &str {
+                    "permanode" => {
+                        info!("Found permanode: {}", object.id);
+                        self.index_permanode(&object);
+                    }
+                    "claim" => {
+                        info!("Found claim: {}", object.id);
+                        self.index_claim(&object);
+                    }
+                    kind => debug!("Found unknown kind {:?}", kind),
+                },
+                Some(_) => {
+                    info!("Object has dhstore_kind with non-string value");
+                }
+                None => {}
+            }
+        }
+
+        // Now inserts the object
         self.objects.insert(object.id.clone(), object);
+    }
+
+    fn index_permanode(&mut self, object: &Object) {
+        unimplemented!() // TODO: index_permanode
+    }
+
+    fn index_claim(&mut self, object: &Object) {
+        unimplemented!() // TODO: index_claim
     }
 
     /// Common logic for `verify()` and `collect_garbage().`
@@ -317,7 +376,7 @@ impl ObjectIndex for MemoryIndex {
             info!("Adding object to index: {}", id);
             MemoryIndex::write_object(&self.path, &object)
                 .map_err(|e| ("Couldn't write object to disk", e))?;
-            self.insert_object_do_backrefs(object);
+            self.insert_object_in_index(object);
         }
         Ok(id)
     }

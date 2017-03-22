@@ -251,6 +251,7 @@ pub fn permanode(mut data: Dict) -> Object {
     rand::thread_rng().fill_bytes(&mut random);
     let random = ID::from_slice(&random).unwrap().str();
     data.insert("random".into(), Property::String(random));
+    data.insert("dhstore_kind".into(), Property::String("permanode".into()));
     serialize::hash_object(ObjectData::Dict(data))
 }
 
