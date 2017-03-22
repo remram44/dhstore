@@ -25,3 +25,8 @@ dhstore stores objects (structured, indexable documents) and blobs (bunch of byt
 Everything is content-addressable (referenced by its hash) much like Git or IPFS. However, special objects called permanode allow for mutability: "claim" objects associate a permanode to a value, and can be authenticated via public-key cryptography.
 
 For example, a permanode might be used to collect snapshots of some directory tree. Claims associate the roots of snapshots to the permanode, and can be searched by date.
+
+Dependencies
+------------
+
+![Cargo dependencies](Cargo.png)
