@@ -3,6 +3,7 @@
 //! This module contains the basic structs `Object`, `Property`, and the
 //! `BlobStorage` and `ObjectIndex` traits.
 
+use std::cmp::{Ord, Ordering};
 use std::collections::{BTreeMap, HashSet};
 
 use errors;
@@ -17,6 +18,39 @@ pub enum Property {
     Integer(i64),
     Reference(ID),
     Blob(ID),
+}
+
+impl PartialOrd for Property {
+    fn partial_cmp(&self, other: &Property) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Property {
+    fn cmp(&self, other: &Property) -> Ordering {
+        use Property::*;
+
+        match (self, other) {
+            (&String(ref s1), &String(ref s2)) => s1.cmp(s2),
+            (&String(_), &Integer(_)) => Ordering::Less,
+            (&String(_), &Reference(_)) |
+            (&String(_), &Blob(_)) => Ordering::Less,
+
+            (&Integer(_), &String(_)) => Ordering::Greater,
+            (&Integer(i1), &Integer(ref i2)) => i1.cmp(i2),
+            (&Integer(_), &Reference(_)) |
+            (&Integer(_), &Blob(_)) => Ordering::Less,
+
+            (&Reference(_), &String(_)) |
+            (&Blob(_), &String(_)) => Ordering::Greater,
+            (&Reference(_), &Integer(_)) |
+            (&Blob(_), &Integer(_)) => Ordering::Greater,
+            (&Reference(ref r1), &Reference(ref r2)) |
+            (&Reference(ref r1), &Blob(ref r2)) |
+            (&Blob(ref r1), &Reference(ref r2)) |
+            (&Blob(ref r1), &Blob(ref r2)) => r1.cmp(r2),
+        }
+    }
 }
 
 pub type Dict = BTreeMap<String, Property>;

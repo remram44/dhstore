@@ -11,7 +11,7 @@ use std::hash;
 /// Identifier for an object.
 ///
 /// Because they are content-addressable, this is a hash of its content.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ID {
     pub bytes: [u8; 32],
 }
@@ -113,14 +113,6 @@ impl ID {
         Some(ID { bytes: out })
     }
 }
-
-impl PartialEq for ID {
-    fn eq(&self, other: &ID) -> bool {
-        self.bytes == other.bytes
-    }
-}
-
-impl Eq for ID {}
 
 impl hash::Hash for ID {
     fn hash<H: hash::Hasher>(&self, state: &mut H) {
