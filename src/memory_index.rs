@@ -63,6 +63,21 @@ enum Backkey {
     Key(String),
 }
 
+fn insert_into_multimap<K: Clone + Eq + ::std::hash::Hash,
+                        V: Eq + ::std::hash::Hash>(
+    multimap: &mut HashMap<K, HashSet<V>>,
+    key: &K,
+    value: V)
+{
+    if let Some(set) = multimap.get_mut(key) {
+        set.insert(value);
+        return;
+    }
+    let mut set = HashSet::new();
+    set.insert(value);
+    multimap.insert(key.clone(), set);
+}
+
 /// The in-memory index, that loads all objects from the disk on startup.
 pub struct MemoryIndex {
     path: PathBuf,
@@ -194,13 +209,8 @@ impl MemoryIndex {
                 }
 
                 // Add backlink
-                if let Some(set) = self.backlinks.get_mut(target) {
-                    set.insert((key, source));
-                    return;
-                }
-                let mut set = HashSet::new();
-                set.insert((key, source));
-                self.backlinks.insert(target.clone(), set);
+                insert_into_multimap(&mut self.backlinks,
+                                     target, (key, source));
             };
             match object.data {
                 ObjectData::Dict(ref dict) => {
