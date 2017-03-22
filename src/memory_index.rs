@@ -12,7 +12,8 @@ use std::fs::{self, File, OpenOptions};
 use std::io;
 use std::path::{PathBuf, Path};
 
-use common::{ID, Object, ObjectData, ObjectIndex, Property};
+use common::{HASH_SIZE, Sort, ID, Dict, Object, ObjectData, Property,
+             ObjectIndex};
 use errors::{self, Error};
 use serialize;
 
@@ -68,7 +69,7 @@ enum Backkey {
 }
 
 struct Permanode {
-    sort_field: String,
+    sort_field: Sort,
     claims: BTreeMap<Property, ID>,
 }
 
@@ -288,12 +289,89 @@ impl MemoryIndex {
         self.objects.insert(object.id.clone(), object);
     }
 
-    fn index_permanode(&mut self, object: &Object) {
-        unimplemented!() // TODO: index_permanode
+    fn index_permanode(&mut self, permanode: &Object) {
+        // Validate the permanode
+        let ref id = permanode.id;
+        let permanode = match permanode.data {
+            ObjectData::Dict(ref d) => d,
+            ObjectData::List(_) => {
+                panic!("Invalid permanode {}: not a dict", id);
+            }
+        };
+        match permanode.get("random") {
+            Some(&Property::String(ref s)) => {
+                if s.len() != HASH_SIZE {
+                    warn!("Invalid permanode {}: invalid random size {}",
+                          id, s.len());
+                    return;
+                }
+            }
+            _ => {
+                warn!("Invalid permanode {}: missing random", id);
+                return;
+            }
+        }
+
+        let sort_field = match permanode.get("sort") {
+            Some(&Property::String(ref s)) => match s.parse() {
+                Ok(f) => f,
+                Err(()) => {
+                    warn!("Invalid permanode {}: invalid sort", id);
+                    return;
+                }
+            },
+            _ => {
+                warn!("Invalid permanode {}: invalid sort", id);
+                return;
+            }
+        };
+
+        // Insert the permanode in the index
+        debug!("Permanode is well-formed, adding to index");
+        self.permanodes.insert(id.clone(),
+                               Permanode { sort_field: sort_field,
+                                           claims: BTreeMap::new() });
+
+        // Process claims
+        if let Some(set) = self.claims.get(id) {
+            for claim in set {
+                self.index_permanode_claim(id, claim);
+            }
+        }
     }
 
-    fn index_claim(&mut self, object: &Object) {
-        unimplemented!() // TODO: index_claim
+    fn index_claim(&mut self, claim: &Object) {
+        // Validate the claim
+        let id = &claim.id;
+        let claim = match claim.data {
+            ObjectData::Dict(ref d) => d,
+            ObjectData::List(_) => {
+                panic!("Invalid claim {}: not a dict", id);
+            }
+        };
+        let permanode = match (claim.get("node"), claim.get("value")) {
+            (Some(&Property::Reference(ref r)),
+             Some(&Property::Reference(_))) => r,
+            _ => {
+                warn!("Invalid claim {}: wrong content", id);
+                return;
+            }
+        };
+
+        // Insert the claim in the index
+        // Note that this means it is well-formed, not that it is valid;
+        // validity needs to be checked with the permanode
+        debug!("Claim is well-formed, adding to index");
+        insert_into_multimap(&mut self.claims, permanode, id.clone());
+
+        // If we have the permanode, index a valid claim
+        if self.permanodes.contains_key(permanode) {
+            self.index_permanode_claim(permanode, id);
+        }
+    }
+
+    fn index_permanode_claim(&self, permanode: &ID, claim: &ID) {
+        unimplemented!() // TODO: index_permanode_claim
     }
 
     /// Common logic for `verify()` and `collect_garbage().`

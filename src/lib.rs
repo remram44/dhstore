@@ -16,9 +16,10 @@ mod memory_index;
 mod serialize;
 
 use chunker::{ChunkInput, chunks};
-pub use common::{HASH_SIZE, ID, Dict, List, Property, ObjectData, Object,
+use common::{HASH_SIZE, Sort};
+pub use common::{ID, Dict, List, Property, ObjectData, Object,
                  BlobStorage, EnumerableBlobStorage, ObjectIndex};
-use errors::Error;
+pub use errors::Error;
 pub use memory_index::MemoryIndex;
 pub use file_storage::FileBlobStorage;
 
@@ -246,12 +247,13 @@ impl<S: EnumerableBlobStorage, I: ObjectIndex> Store<S, I> {
     }
 }
 
-pub fn permanode(mut data: Dict) -> Object {
+pub fn permanode(mut data: Dict, sort: Sort) -> Object {
+    data.insert("dhstore_kind".into(), Property::String("permanode".into()));
+    data.insert("sort".into(), Property::String(sort.into()));
     let mut random = [0u8; HASH_SIZE];
     rand::thread_rng().fill_bytes(&mut random);
     let random = ID::from_slice(&random).unwrap().str();
     data.insert("random".into(), Property::String(random));
-    data.insert("dhstore_kind".into(), Property::String("permanode".into()));
     serialize::hash_object(ObjectData::Dict(data))
 }
 
@@ -332,8 +334,7 @@ pub fn create<P: AsRef<Path>>(path: P) -> errors::Result<()> {
         // Log permanode
         let mut log = Dict::new();
         log.insert("type".into(), Property::String("set".into()));
-        log.insert("order".into(), Property::String("date".into()));
-        let log = permanode(log);
+        let log = permanode(log, Sort::Ascending("date".into()));
 
         // Config object
         let mut config = Dict::new();
