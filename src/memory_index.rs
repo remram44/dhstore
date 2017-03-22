@@ -53,22 +53,6 @@ impl Policy for KeepPolicy {
     }
 }
 
-/// An object with a reference count attached.
-///
-/// Because the index has mutable objects (permanodes), cycles are possible and
-/// a proper garbage collector is necessary. However, for non-mutable nodes, a
-/// reference count is still stored to make it faster to collect.
-pub enum RefCount {
-    Number(usize),
-    Special,
-}
-
-/// An object with a reference count tacked on.
-pub struct RefCountedObject {
-    refs: RefCount,
-    object: Object,
-}
-
 /// Key of a reference, used in the backward reference map.
 ///
 /// A reference is a value, and can appear in both types of schema objects: in a
@@ -82,7 +66,7 @@ enum Backkey {
 /// The in-memory index, that loads all objects from the disk on startup.
 pub struct MemoryIndex {
     path: PathBuf,
-    objects: HashMap<ID, RefCountedObject>,
+    objects: HashMap<ID, Object>,
     backlinks: HashMap<ID, HashSet<(Backkey, ID)>>,
     root: ID,
     log: Option<ID>,
@@ -189,11 +173,9 @@ impl MemoryIndex {
         serialize::serialize(&mut fp, object)
     }
 
-    /// Utility to insert a new object in the store while taking care of refs.
+    /// Utility to insert a new object in the store.
     ///
-    /// Insert the object, sets its reference count from the back reference map,
-    /// updates the reference count of referenced object, and adds references to
-    /// the back reference map.
+    /// Insert the object, indexing the back references.
     fn insert_object_do_backrefs(&mut self, object: Object) {
         // Record reverse references
         {
@@ -208,14 +190,6 @@ impl MemoryIndex {
                             debug!("Reference {} -> {} ({})",
                                    source, target, k);
                         }
-                    }
-                }
-
-                // Increment refs of target
-                if let Some(refobj) = self.objects.get_mut(target) {
-                    match refobj.refs {
-                        RefCount::Number(ref mut nb) => *nb += 1,
-                        RefCount::Special => {}
                     }
                 }
 
@@ -250,11 +224,7 @@ impl MemoryIndex {
             }
         }
 
-        let refs = self.backlinks.get(&object.id)
-            .map_or(0, |backlinks| backlinks.len());
-        self.objects.insert(object.id.clone(),
-                            RefCountedObject { refs: RefCount::Number(refs),
-                                               object: object });
+        self.objects.insert(object.id.clone(), object);
     }
 
     /// Common logic for `verify()` and `collect_garbage().`
@@ -263,7 +233,7 @@ impl MemoryIndex {
     /// true, unreferenced objects are deleted, and the set of referenced blobs
     /// is returned; else, an empty `HashSet` is returned.
     fn walk(&mut self, collect: bool) -> errors::Result<HashSet<ID>> {
-        let mut alive = HashMap::new(); // ids => refcount
+        let mut alive = HashSet::new(); // ids
         let mut live_blobs = HashSet::new(); // ids
         let mut open = VecDeque::new(); // ids
         if self.objects.get(&self.root).is_none() {
@@ -281,12 +251,11 @@ impl MemoryIndex {
                     continue;
                 }
             };
-            if let Some(v) = alive.get_mut(&id) {
-                *v += 1;
-                debug!("  already alive, incrementing refs to {}", v);
+            if alive.contains(&id) {
+                debug!("  already alive");
                 continue;
             }
-            alive.insert(id, 1);
+            alive.insert(id);
             let mut handle = |value: &Property| {
                 match *value {
                     Property::Reference(ref id) => {
@@ -300,7 +269,7 @@ impl MemoryIndex {
                     _ => {}
                 }
             };
-            match object.object.data {
+            match object.data {
                 ObjectData::Dict(ref dict) => {
                     debug!("  is dict, {} values", dict.len());
                     for v in dict.values() {
@@ -318,7 +287,7 @@ impl MemoryIndex {
         info!("Found {}/{} live objects", alive.len(), self.objects.len());
         if collect {
             let dead_objects = self.objects.keys()
-                .filter(|id| !alive.contains_key(id))
+                .filter(|id| !alive.contains(id))
                 .cloned()
                 .collect::<Vec<_>>();
             info!("Removing {} dead objects", dead_objects.len());
@@ -344,7 +313,7 @@ impl ObjectIndex for MemoryIndex {
     }
 
     fn get_object(&self, id: &ID) -> errors::Result<Option<&Object>> {
-        Ok(self.objects.get(id).map(|r| &r.object))
+        Ok(self.objects.get(id))
     }
 
     fn verify(&mut self) -> errors::Result<()> {
