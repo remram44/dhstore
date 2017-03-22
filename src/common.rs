@@ -5,6 +5,7 @@
 
 use std::cmp::{Ord, Ordering};
 use std::collections::{BTreeMap, HashSet};
+use std::str::FromStr;
 
 use errors;
 pub use hash::{HASH_SIZE, ID};
@@ -68,6 +69,51 @@ pub enum ObjectData {
 pub struct Object {
     pub id: ID,
     pub data: ObjectData,
+}
+
+/// Sorting field (required for permanodes).
+pub enum Sort {
+    Ascending(String),
+    Descending(String),
+}
+
+impl Sort {
+    fn field(&self) -> &str {
+        match *self {
+            Sort::Ascending(ref s) | Sort::Descending(ref s) => s,
+        }
+    }
+}
+
+impl<'a> From<&'a Sort> for String {
+    fn from(sort: &'a Sort) -> String {
+        let mut s = String::with_capacity(1 + sort.field().len());
+        match *sort {
+            Sort::Ascending(_) => s.push('+'),
+            Sort::Descending(_) => s.push('-'),
+        }
+        s.push_str(sort.field());
+        s
+    }
+}
+
+impl From<Sort> for String {
+    fn from(sort: Sort) -> String {
+        (&sort).into()
+    }
+}
+
+impl FromStr for Sort {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Sort, ()> {
+        let mut chars = s.chars();
+        match chars.next() {
+            Some('+') => Ok(Sort::Ascending(chars.as_str().into())),
+            Some('-') => Ok(Sort::Descending(chars.as_str().into())),
+            _ => Err(())
+        }
+    }
 }
 
 /// Trait for the blob storage backends, that handle the specifics of storing
