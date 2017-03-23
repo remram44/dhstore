@@ -10,6 +10,7 @@ use log_crate::LogLevel;
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::fs::{self, File, OpenOptions};
 use std::io;
+use std::mem::swap;
 use std::path::{PathBuf, Path};
 
 use common::{HASH_SIZE, Sort, ID, Dict, Object, ObjectData, Property,
@@ -68,9 +69,53 @@ enum Backkey {
     Claim,
 }
 
+enum PermanodeType {
+    Set,
+    Single,
+}
+
 struct Permanode {
-    sort_field: Sort,
+    sort: Sort,
+    nodetype: PermanodeType,
     claims: BTreeMap<Property, ID>,
+}
+
+impl Permanode {
+    fn index_claim(&mut self, claim: &Dict, permanode_id: &ID, claim_id: &ID) {
+        // We require the claim to have the sort key
+        let sort_value: &Property = match claim.get(self.sort.field()) {
+            Some(ref prop) => prop,
+            None => {
+                debug!("Claim {} is invalid for permanode {}: \
+                        missing sort key",
+                       claim_id, permanode_id);
+                return;
+            }
+        };
+        // Currently, no validation is done; every claim is accepted
+        // In the future, we'd have ways of checking a claim, such as public
+        // key signatures (permanode has key, claim has signature)
+        self.claims.insert(sort_value.clone(), claim_id.clone());
+        match self.nodetype {
+            PermanodeType::Set => {
+                // Keep the whole set of values
+                // TODO: handle set deletion claims
+            }
+            PermanodeType::Single => {
+                // Keep one value, the latest by sorting order
+                if self.claims.len() > 1 {
+                    let mut map = BTreeMap::new();
+                    swap(&mut self.claims, &mut map);
+                    let mut map = map.into_iter();
+                    let (k, v) = match self.sort {
+                        Sort::Ascending(_) => map.next_back().unwrap(),
+                        Sort::Descending(_) => map.next().unwrap(),
+                    };
+                    self.claims.insert(k, v);
+                }
+            }
+        }
+    }
 }
 
 fn insert_into_multimap<K: Clone + Eq + ::std::hash::Hash,
@@ -312,7 +357,7 @@ impl MemoryIndex {
             }
         }
 
-        let sort_field = match permanode.get("sort") {
+        let sort = match permanode.get("sort") {
             Some(&Property::String(ref s)) => match s.parse() {
                 Ok(f) => f,
                 Err(()) => {
@@ -326,18 +371,41 @@ impl MemoryIndex {
             }
         };
 
-        // Insert the permanode in the index
+        let nodetype = match permanode.get("type") {
+            Some(&Property::String(ref s)) => match s as &str {
+                "set" | "single" => PermanodeType::Set,
+                _ => {
+                    warn!("Unknown permanode type {:?}, ignoring permanode {}",
+                          s, id);
+                    return;
+                }
+            },
+            None => PermanodeType::Single,
+            Some(_) => {
+                warn!("Invalid permanode {}: invalid type", id);
+                return;
+            }
+        };
+
         debug!("Permanode is well-formed, adding to index");
-        self.permanodes.insert(id.clone(),
-                               Permanode { sort_field: sort_field,
-                                           claims: BTreeMap::new() });
+        let mut node = Permanode { sort: sort,
+                                   nodetype: nodetype,
+                                   claims: BTreeMap::new() };
 
         // Process claims
         if let Some(set) = self.claims.get(id) {
-            for claim in set {
-                self.index_permanode_claim(id, claim);
+            for claim_id in set {
+                let claim = self.objects.get(claim_id).unwrap();
+                let claim = match claim.data {
+                    ObjectData::Dict(ref d) => d,
+                    _ => panic!("Invalid claim {}: not a dict", claim_id),
+                };
+                node.index_claim(claim, id, claim_id);
             }
         }
+
+        // Insert the permanode in the index
+        self.permanodes.insert(id.clone(), node);
     }
 
     fn index_claim(&mut self, claim: &Object) {
@@ -345,9 +413,7 @@ impl MemoryIndex {
         let id = &claim.id;
         let claim = match claim.data {
             ObjectData::Dict(ref d) => d,
-            ObjectData::List(_) => {
-                panic!("Invalid claim {}: not a dict", id);
-            }
+            _ => panic!("Invalid claim {}: not a dict", id),
         };
         let permanode = match (claim.get("node"), claim.get("value")) {
             (Some(&Property::Reference(ref r)),
@@ -365,13 +431,9 @@ impl MemoryIndex {
         insert_into_multimap(&mut self.claims, permanode, id.clone());
 
         // If we have the permanode, index a valid claim
-        if self.permanodes.contains_key(permanode) {
-            self.index_permanode_claim(permanode, id);
+        if let Some(node) = self.permanodes.get_mut(permanode) {
+            node.index_claim(claim, permanode, id);
         }
-    }
-
-    fn index_permanode_claim(&self, permanode: &ID, claim: &ID) {
-        unimplemented!() // TODO: index_permanode_claim
     }
 
     /// Common logic for `verify()` and `collect_garbage().`

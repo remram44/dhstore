@@ -13,7 +13,7 @@ pub use hash::{HASH_SIZE, ID};
 /// Values that appear in an object's metadata.
 ///
 /// This is either an integer, a string, or a reference to another object.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Property {
     String(String),
     Integer(i64),
@@ -78,7 +78,7 @@ pub enum Sort {
 }
 
 impl Sort {
-    fn field(&self) -> &str {
+    pub fn field(&self) -> &str {
         match *self {
             Sort::Ascending(ref s) | Sort::Descending(ref s) => s,
         }
