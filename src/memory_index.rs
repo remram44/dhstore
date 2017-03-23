@@ -65,8 +65,6 @@ enum Backkey {
     Key(String),
     /// Reference from a list from this index.
     Index(usize),
-    /// Reference from a permanode (referred object is a valid claim).
-    Claim,
 }
 
 enum PermanodeType {
@@ -272,10 +270,6 @@ impl MemoryIndex {
                         Backkey::Index(i) => {
                             debug!("Reference {} -> {} ({})",
                                    source, target, i);
-                        }
-                        Backkey::Claim => {
-                            debug!("Reference {} -> {} (claim)",
-                                   source, target);
                         }
                     }
                 }
