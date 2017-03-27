@@ -13,6 +13,7 @@ mod file_storage;
 pub mod hash;
 pub mod log;
 mod memory_index;
+pub mod queries;
 mod serialize;
 
 use chunker::{ChunkInput, chunks};
