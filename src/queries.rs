@@ -23,16 +23,16 @@
 //! @|.contacts|.age=20|.firstname@|.backups
 //! ```
 //!
-//! Find recently deleted pictures of cats:
+//! Find recently deleted pictures of cats, ordered by size:
 //!
 //! ```text
-//! @log|.[@photos]|.date>now-1week|.tags<["cat"]
+//! @log|.[@photos]|.date>now-1week|.tags<["cat"]|sort
 //! ```
 //!
 //! Anything linking to a specific picture:
 //!
 //! ```text
-//! @all|values|.=(@photos|id=DOdY4OwCEf6AouK4eK6fRs)
+//! @all|(values|.=(@photos|id=DOdY4OwCEf6AouK4eK6fRs))
 //! ```
 
 use std::rc::{Rc, Weak};
@@ -46,7 +46,16 @@ use common::{ID, Property};
 /// nothing at all, in which case we should try to advance again.
 pub type QueryResult = Result<Option<Property>, &'static str>;
 
-type MaybeQueryResult = Result<Option<Property>, Option<&'static str>>;
+enum MaybeItem {
+    /// A result, to be returned from the query.
+    Item(Property),
+    /// Interrupted, try this again.
+    Interrupted,
+    /// No more results to be had here.
+    Done,
+}
+
+type MaybeQueryResult = Result<MaybeItem, &'static str>;
 
 /// A full query, that can be a combination of many subqueries and filters.
 pub struct Query {
@@ -60,21 +69,21 @@ impl Query {
         loop {
             match self.roots[self.pos].advance() {
                 // Error
-                Err(Some(e)) => return Err(e),
+                Err(e) => return Err(e),
                 // Value
-                Ok(Some(p)) => {
+                Ok(MaybeItem::Item(p)) => {
                     assert_eq!(self.pos, self.roots.len() - 1,
                             "Filter chain returned a value early");
                     return Ok(Some(p))
                 }
-                // Nothing yet
-                Err(None) => {
+                // Nothing
+                Ok(MaybeItem::Nothing) => {
                     if self.pos + 1 < self.roots.len() {
                         self.pos += 1;
                     }
                 }
                 // This root is done
-                Ok(None) => {
+                Ok(MaybeItem::Interrupted) => {
                     if self.pos == 0 {
                         return Ok(None);
                     }
@@ -86,17 +95,11 @@ impl Query {
     }
 }
 
-/// A root filter of a query, `@something`.
-///
-/// This is always the start point of a chain of filters, where the data comes
-/// from; it doesn't take any inputs.
-struct StoreRoot {
-    name: String,
-}
-
+/// A filter is one component of a query, which gets values in and produces
+/// values out.
 trait Filter {
     fn advance(&mut self, values: Vec<&Property>) -> MaybeQueryResult;
-    fn reset(&mut self) {}
+    fn reset(&mut self)
 }
 
 struct FilterNode {
@@ -122,7 +125,38 @@ impl FilterNode {
     }
 }
 
-/*struct Index {}
+/// A root filter of a query, `@something`.
+///
+/// This is always the start point of a chain of filters, where the data comes
+/// from; it doesn't take any inputs.
+struct StoreRoot {
+    name: String,
+}
+
+struct ConstantList {
+    value: Vec<Property>,
+    pos: usize,
+}
+
+impl Filter for ConstantList {
+    fn advance(&mut self, values: Vec<&Property>) -> MaybeQueryResult {
+    }
+}
+
+enum IndexMode {
+    /// `a[b]`
+    Exact,
+    /// `a[b..]`
+    RangeFrom,
+    /// `a[..b]`
+    RangeTo,
+    /// `a[b..c]`
+    Range,
+}
+
+struct Index {
+    mode: IndexMode,
+}
 
 impl Filter for Index {
     fn advance(&mut self, values: Vec<&Property>) -> MaybeQueryResult {
@@ -148,4 +182,11 @@ impl Filter for Index {
             (_, _) => Err("invalid container type"),
         }
     }
-}*/
+}
+
+// https://github.com/stedolan/jq/wiki/Internals:-backtracking
+
+mod tests {
+    fn test() {
+    }
+}
