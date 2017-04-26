@@ -6,12 +6,13 @@
 //! This is very inefficient and should be backed by proper database code at
 //! some point.
 
-use log_crate::LogLevel;
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 use std::fs::{self, File, OpenOptions};
 use std::io;
 use std::mem::swap;
 use std::path::{PathBuf, Path};
+
+use log_crate::LogLevel;
 
 use common::{HASH_SIZE, Sort, ID, Dict, Object, ObjectData, Property,
              ObjectIndex};

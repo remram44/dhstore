@@ -6,15 +6,16 @@ extern crate termcolor;
 
 extern crate dhstore;
 
-use dhstore::errors::Error;
-use dhstore::hash::ID;
-use dhstore::log::init;
-
-use clap::{App, Arg, SubCommand};
-use log::LogLevel;
 use std::fs::File;
 use std::io::{self, Write};
 use std::process;
+
+use clap::{App, Arg, SubCommand};
+use log::LogLevel;
+
+use dhstore::errors::Error;
+use dhstore::hash::ID;
+use dhstore::log::init;
 
 fn main() {
     let verbose = &Arg::with_name("verbose")

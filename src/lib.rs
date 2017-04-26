@@ -15,19 +15,20 @@ pub mod log;
 mod memory_index;
 mod serialize;
 
+use std::fs::{self, File, OpenOptions};
+use std::io::{self, Read, Write};
+use std::mem::swap;
+use std::path::Path;
+
 use chunker::{ChunkInput, chunks};
+use rand::Rng;
+
 use common::{HASH_SIZE, Sort};
 pub use common::{ID, Dict, List, Property, ObjectData, Object,
                  BlobStorage, EnumerableBlobStorage, ObjectIndex};
 pub use errors::Error;
 pub use memory_index::MemoryIndex;
 pub use file_storage::FileBlobStorage;
-
-use rand::Rng;
-use std::fs::{self, File, OpenOptions};
-use std::io::{self, Read, Write};
-use std::mem::swap;
-use std::path::Path;
 
 /// Main structure, representing the whole system.
 pub struct Store<S: BlobStorage, I: ObjectIndex> {
