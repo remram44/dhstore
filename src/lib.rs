@@ -86,6 +86,7 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
                 ChunkInput::Data(d) => {
                     blob.extend_from_slice(d);
                     if blob.len() > MAX_LEN {
+                        chunks.push(Property::Integer(size as i64));
                         let mut other = blob.split_off(MAX_LEN);
                         swap(&mut blob, &mut other);
                         assert_eq!(other.len(), MAX_LEN);
@@ -95,6 +96,7 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
                     }
                 }
                 ChunkInput::End => {
+                    chunks.push(Property::Integer(size as i64));
                     size += blob.len();
                     let id = self.storage.add_blob(&blob)?;
                     chunks.push(Property::Blob(id));
@@ -102,7 +104,8 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
                 }
             }
         }
-        let nb_chunks = chunks.len();
+        assert!(chunks.len() % 2 == 0);
+        let nb_chunks = chunks.len() / 2;
         let id = self.index.add(ObjectData::List(chunks))?;
         info!("Added file contents, {} chunks, id = {}", nb_chunks, id);
         Ok((id, size))
