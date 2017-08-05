@@ -7,7 +7,7 @@ script:
   - cargo build --verbose
   - cargo test --verbose
   - ./smoketest.sh
-  - cargo doc --no-deps -p dhstore -p chunker
+  - cargo doc --no-deps -p dhstore
 after_success: |
   [ $TRAVIS_BRANCH = master ] &&
   [ $TRAVIS_RUST_VERSION = nightly ] &&
