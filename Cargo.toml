@@ -9,7 +9,7 @@ name = "dhstore"
 doc = false
 
 [dependencies]
-chunker = { path = "chunker" }
+cdchunking = "0.1"
 clap = "2.20"
 log = "0.3"
 rand = "0.3"

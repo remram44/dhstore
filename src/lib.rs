@@ -1,6 +1,6 @@
 //! DHStore: A personal content management system.
 
-extern crate chunker;
+extern crate cdchunking;
 #[macro_use]
 extern crate log as log_crate;
 extern crate rand;
@@ -20,7 +20,7 @@ use std::io::{self, Read, Write};
 use std::mem::swap;
 use std::path::Path;
 
-use chunker::{ChunkInput, chunks};
+use cdchunking::{Chunker, ZPAQ, ChunkInput};
 use rand::Rng;
 
 use common::{HASH_SIZE, Sort};
@@ -76,7 +76,8 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
         -> errors::Result<(ID, usize)>
     {
         let mut blob = Vec::new();
-        let mut iter = chunks(reader, 13); // 8 KiB average
+        let chunker = Chunker::new(ZPAQ::new(13)); // 8 KiB average
+        let mut iter = chunker.stream(reader);
         let mut chunks = Vec::new();
         let mut size = 0;
         const MAX_LEN: usize = 64 * 1024; // 64 KiB hard maximum
