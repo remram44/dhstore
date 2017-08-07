@@ -9,7 +9,7 @@ name = "dhstore"
 doc = false
 
 [dependencies]
-cdchunking = "0.1"
+cdchunking = "0.2"
 clap = "2.20"
 log = "0.3"
 rand = "0.3"

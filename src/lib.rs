@@ -17,7 +17,6 @@ mod serialize;
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
-use std::mem::swap;
 use std::path::Path;
 
 use cdchunking::{Chunker, ZPAQ, ChunkInput};
@@ -77,25 +76,14 @@ impl<S: BlobStorage, I: ObjectIndex> Store<S, I> {
     {
         let mut blob = Vec::new();
         let chunker = Chunker::new(ZPAQ::new(13)); // 8 KiB average
+        let chunker = chunker.max_size(64 * 1024); // 64 KiB hard maximum
         let mut iter = chunker.stream(reader);
         let mut chunks = Vec::new();
         let mut size = 0;
-        const MAX_LEN: usize = 64 * 1024; // 64 KiB hard maximum
         while let Some(chunk) = iter.read() {
             let chunk = chunk.map_err(|e| ("Error reading from blob", e))?;
             match chunk {
-                ChunkInput::Data(d) => {
-                    blob.extend_from_slice(d);
-                    if blob.len() > MAX_LEN {
-                        chunks.push(Property::Integer(size as i64));
-                        let mut other = blob.split_off(MAX_LEN);
-                        swap(&mut blob, &mut other);
-                        assert_eq!(other.len(), MAX_LEN);
-                        size += other.len();
-                        let id = self.storage.add_blob(&other)?;
-                        chunks.push(Property::Blob(id));
-                    }
-                }
+                ChunkInput::Data(d) => blob.extend_from_slice(d),
                 ChunkInput::End => {
                     chunks.push(Property::Integer(size as i64));
                     size += blob.len();

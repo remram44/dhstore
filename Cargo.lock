@@ -2,7 +2,7 @@
 name = "dhstore"
 version = "0.0.1"
 dependencies = [
- "cdchunking 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cdchunking 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.22.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -37,7 +37,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "cdchunking"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -205,7 +205,7 @@ dependencies = [
 "checksum atty 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "d912da0db7fa85514874458ca3651fe2cddace8d0b0505571dbdcd41ab490159"
 "checksum bitflags 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)" = "45628e6f4c6fd6c0f69256167a04fe97bb507bc30067026cbaa94a757d9e2ca9"
 "checksum byte-tools 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "0919189ba800c7ffe8778278116b7e0de3905ab81c72abb69c85cbfef7991279"
-"checksum cdchunking 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "ff27ea6e51a7029a3550664b36bd8c9e41e3aca8ae0126320e2f29288905a194"
+"checksum cdchunking 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "6cb12b7050bd7a84377794b93e13905d1512341d8a28056d35ec5ffbbd45c32d"
 "checksum clap 2.22.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e17a4a72ffea176f77d6e2db609c6c919ef221f23862c9915e687fb54d833485"
 "checksum digest 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "41a0f307b67d9f0e57edc00804d3146f9f889fe8b2422825566c8e8dd2b5733c"
 "checksum digest-buffer 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "79472b4b47364a1f1c23122d5b5e481b4657714c61617ea91daf6f57549b5f00"
