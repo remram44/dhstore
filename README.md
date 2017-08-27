@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/remram44/dhstore.svg?branch=master)](https://travis-ci.org/remram44/dhstore/builds)
+[![Win Build](https://ci.appveyor.com/api/projects/status/7bhq8phkkl30phmp/branch/master?svg=true)](https://ci.appveyor.com/project/remram44/dhstore/history)
 
 [Generated documentation](https://remram44.github.io/dhstore/index.html)
 
