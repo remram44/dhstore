@@ -1,0 +1,1 @@
+initSidebarItems({"constant":[["HASH_SIZE","Size of the hash in bytes."]],"struct":[["Hasher","Content to ID code."],["HasherReader","A convenient adapter to hash while reading."],["HasherWriter","A convenient adapter to hash while writing."],["ID","Identifier for an object."]]});

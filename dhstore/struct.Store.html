@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Store` struct in crate `dhstore`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Store">
+
+    <title>dhstore::Store - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css"
+          id="mainThemeStyle">
+    
+    <link rel="stylesheet" type="text/css" href="../dark.css">
+    <link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle">
+    <script src="../storage.js"></script>
+    
+
+    
+    
+</head>
+<body class="rustdoc struct">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        <div class="sidebar-menu">&#9776;</div>
+        
+        <p class='location'>Struct Store</p><div class="sidebar-elems"><div class="block items"><a class="sidebar-title" href="#methods">Methods</a><div class="sidebar-links"><a href="#method.new">new</a><a href="#method.add_blob">add_blob</a><a href="#method.get_blob">get_blob</a><a href="#method.get_object">get_object</a><a href="#method.add_file">add_file</a><a href="#method.add">add</a><a href="#method.verify">verify</a><a href="#method.print_object">print_object</a><a href="#method.collect_garbage">collect_garbage</a></div><a class="sidebar-title" href="#synthetic-implementations">Auto Trait Implementations</a><div class="sidebar-links"><a href="#impl-Send">Send</a><a href="#impl-Sync">Sync</a></div></div><p class='location'><a href='index.html'>dhstore</a></p><script>window.sidebarCurrent = {name: 'Store', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script></div>
+    </nav>
+
+    <div class="theme-picker">
+        <button id="theme-picker" aria-label="Pick another theme!">
+            <img src="../brush.svg" width="18" alt="Pick another theme!">
+        </button>
+        <div id="theme-choices"></div>
+    </div>
+    <script src="../theme.js"></script>
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content"><h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>dhstore</a>::<wbr><a class="struct" href=''>Store</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/dhstore/lib.rs.html#33-36' title='goto source code'>[src]</a></span></h1><div class="docblock type-decl"><pre class='rust struct'>pub struct Store&lt;S:&nbsp;<a class="trait" href="../dhstore/trait.BlobStorage.html" title="trait dhstore::BlobStorage">BlobStorage</a>, I:&nbsp;<a class="trait" href="../dhstore/trait.ObjectIndex.html" title="trait dhstore::ObjectIndex">ObjectIndex</a>&gt; { /* fields omitted */ }</pre></div><div class='docblock'><p>Main structure, representing the whole system.</p>
+</div>
+                    <h2 id='methods' class='small-section-header'>
+                      Methods<a href='#methods' class='anchor'></a>
+                    </h2>
+                <h3 id='impl' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl&lt;S:&nbsp;<a class="trait" href="../dhstore/trait.BlobStorage.html" title="trait dhstore::BlobStorage">BlobStorage</a>, I:&nbsp;<a class="trait" href="../dhstore/trait.ObjectIndex.html" title="trait dhstore::ObjectIndex">ObjectIndex</a>&gt; <a class="struct" href="../dhstore/struct.Store.html" title="struct dhstore::Store">Store</a>&lt;S, I&gt;</code><a href='#impl' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/dhstore/lib.rs.html#44-232' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.new' class="method"><span id='new.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.new' class='fnname'>new</a>(storage: S, index: I) -&gt; <a class="struct" href="../dhstore/struct.Store.html" title="struct dhstore::Store">Store</a>&lt;S, I&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/dhstore/lib.rs.html#46-51' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Creates a store from a given blob storage and object index.</p>
+</div><h4 id='method.add_blob' class="method"><span id='add_blob.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.add_blob' class='fnname'>add_blob</a>&lt;R:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Read.html" title="trait std::io::Read">Read</a>&gt;(&amp;mut self, reader: R) -&gt; <a class="type" href="../dhstore/errors/type.Result.html" title="type dhstore::errors::Result">Result</a>&lt;<a class="struct" href="../dhstore/hash/struct.ID.html" title="struct dhstore::hash::ID">ID</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/dhstore/lib.rs.html#57-61' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Low-level; adds a blob to the blob storage.</p>
+<p>To cut a blob into chunks, add them to the blob storage, and return a
+list object of them, use <code>Store::add_file()</code>.</p>
+</div><h4 id='method.get_blob' class="method"><span id='get_blob.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.get_blob' class='fnname'>get_blob</a>(&amp;self, id: &amp;<a class="struct" href="../dhstore/hash/struct.ID.html" title="struct dhstore::hash::ID">ID</a>) -&gt; <a class="type" href="../dhstore/errors/type.Result.html" title="type dhstore::errors::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">[</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.u8.html">u8</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.slice.html">]</a>&gt;&gt;&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/dhstore/lib.rs.html#64-66' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Low-level; gets a single blob from the blob storage.</p>
+</div><h4 id='method.get_object' class="method"><span id='get_object.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.get_object' class='fnname'>get_object</a>(&amp;self, id: &amp;<a class="struct" href="../dhstore/hash/struct.ID.html" title="struct dhstore::hash::ID">ID</a>) -&gt; <a class="type" href="../dhstore/errors/type.Result.html" title="type dhstore::errors::Result">Result</a>&lt;<a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="struct" href="../dhstore/struct.Object.html" title="struct dhstore::Object">Object</a>&gt;&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/dhstore/lib.rs.html#69-71' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Low-level; gets a single object from the index by its ID.</p>
+</div><h4 id='method.add_file' class="method"><span id='add_file.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.add_file' class='fnname'>add_file</a>&lt;R:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/std/io/trait.Read.html" title="trait std::io::Read">Read</a>&gt;(&amp;mut self, reader: R) -&gt; <a class="type" href="../dhstore/errors/type.Result.html" title="type dhstore::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">(</a><a class="struct" href="../dhstore/hash/struct.ID.html" title="struct dhstore::hash::ID">ID</a>, <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a><a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.tuple.html">)</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/dhstore/lib.rs.html#74-101' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Cuts a file into chunks and add a list object of them to the index.</p>
+</div><h4 id='method.add' class="method"><span id='add.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.add' class='fnname'>add</a>&lt;P:&nbsp;<a class="trait" href="https://doc.rust-lang.org/nightly/core/convert/trait.AsRef.html" title="trait core::convert::AsRef">AsRef</a>&lt;<a class="struct" href="https://doc.rust-lang.org/nightly/std/path/struct.Path.html" title="struct std::path::Path">Path</a>&gt;&gt;(&amp;mut self, path: P) -&gt; <a class="type" href="../dhstore/errors/type.Result.html" title="type dhstore::errors::Result">Result</a>&lt;<a class="struct" href="../dhstore/hash/struct.ID.html" title="struct dhstore::hash::ID">ID</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/dhstore/lib.rs.html#125-147' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Adds a file or directory recursively, representing directories as dicts
+and files as lists of blobs.</p>
+</div><h4 id='method.verify' class="method"><span id='verify.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.verify' class='fnname'>verify</a>(&amp;mut self) -&gt; <a class="type" href="../dhstore/errors/type.Result.html" title="type dhstore::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/dhstore/lib.rs.html#150-155' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Checks the blobs and objects for errors.</p>
+</div><h4 id='method.print_object' class="method"><span id='print_object.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.print_object' class='fnname'>print_object</a>(&amp;self, id: &amp;<a class="struct" href="../dhstore/hash/struct.ID.html" title="struct dhstore::hash::ID">ID</a>, limit: <a class="enum" href="https://doc.rust-lang.org/nightly/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.usize.html">usize</a>&gt;) -&gt; <a class="type" href="../dhstore/errors/type.Result.html" title="type dhstore::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/dhstore/lib.rs.html#225-231' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4><div class='docblock'><p>Pretty-prints objects recursively.</p>
+<p>If <code>limit</code> is not <code>None</code>, it is the maximum depth of nested objects
+we'll print; for example, <code>Some(1)</code> means that objects directly
+referenced from the given one will be expanded, but not objects
+referenced from those.</p>
+</div></div><h3 id='impl-1' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl&lt;S:&nbsp;<a class="trait" href="../dhstore/trait.EnumerableBlobStorage.html" title="trait dhstore::EnumerableBlobStorage">EnumerableBlobStorage</a>, I:&nbsp;<a class="trait" href="../dhstore/trait.ObjectIndex.html" title="trait dhstore::ObjectIndex">ObjectIndex</a>&gt; <a class="struct" href="../dhstore/struct.Store.html" title="struct dhstore::Store">Store</a>&lt;S, I&gt;</code><a href='#impl-1' class='anchor'></a></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/dhstore/lib.rs.html#234-241' title='goto source code'>[src]</a></span></td></tr></tbody></table></h3><div class='impl-items'><h4 id='method.collect_garbage' class="method"><span id='collect_garbage.v' class='invisible'><table class='table-display'><tbody><tr><td><code>pub fn <a href='#method.collect_garbage' class='fnname'>collect_garbage</a>(&amp;mut self) -&gt; <a class="type" href="../dhstore/errors/type.Result.html" title="type dhstore::errors::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>&gt;</code></span></td><td><span class='out-of-band'><div class='ghost'></div><a class='srclink' href='../src/dhstore/lib.rs.html#235-240' title='goto source code'>[src]</a></td></tr></tbody></table></span></h4></div>
+            <h2 id='implementations' class='small-section-header'>
+              Trait Implementations<a href='#implementations' class='anchor'></a>
+            </h2>
+            <div id='implementations-list'>
+        </div>
+                <h2 id='synthetic-implementations' class='small-section-header'>
+                  Auto Trait Implementations<a href='#synthetic-implementations' class='anchor'></a>
+                </h2>
+                <div id='synthetic-implementations-list'>
+            <h3 id='impl-Send' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl&lt;S, I&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> for <a class="struct" href="../dhstore/struct.Store.html" title="struct dhstore::Store">Store</a>&lt;S, I&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;I: <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;S: <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a>,&nbsp;</span></code><a href='#impl-Send' class='anchor'></a></span></td><td><span class='out-of-band'></span></td></tr></tbody></table></h3><div class='impl-items'></div><h3 id='impl-Sync' class='impl'><span class='in-band'><table class='table-display'><tbody><tr><td><code>impl&lt;S, I&gt; <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> for <a class="struct" href="../dhstore/struct.Store.html" title="struct dhstore::Store">Store</a>&lt;S, I&gt; <span class="where fmt-newline">where<br>&nbsp;&nbsp;&nbsp;&nbsp;I: <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a>,<br>&nbsp;&nbsp;&nbsp;&nbsp;S: <a class="trait" href="https://doc.rust-lang.org/nightly/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a>,&nbsp;</span></code><a href='#impl-Sync' class='anchor'></a></span></td><td><span class='out-of-band'></span></td></tr></tbody></table></h3><div class='impl-items'></div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt><kbd>?</kbd></dt>
+                    <dd>Show this help dialog</dd>
+                    <dt><kbd>S</kbd></dt>
+                    <dd>Focus the search field</dd>
+                    <dt><kbd>↑</kbd></dt>
+                    <dd>Move up in search results</dd>
+                    <dt><kbd>↓</kbd></dt>
+                    <dd>Move down in search results</dd>
+                    <dt><kbd>↹</kbd></dt>
+                    <dd>Switch tab</dd>
+                    <dt><kbd>&#9166;</kbd></dt>
+                    <dd>Go to active search result</dd>
+                    <dt><kbd>+</kbd></dt>
+                    <dd>Expand all sections</dd>
+                    <dt><kbd>-</kbd></dt>
+                    <dd>Collapse all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "dhstore";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["init","Sets up the logger object to log on stderr with the given log level."]]});
