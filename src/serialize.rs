@@ -164,7 +164,7 @@ fn read_item<R: Read>(read: &mut R) -> io::Result<Item> {
                 }
             }
         }
-        c @ b'0'...b'9' => {
+        c @ b'0'..=b'9' => {
             let mut len = (c - b'0') as usize;
             loop {
                 let c = read_byte(read)?;
