@@ -8,8 +8,10 @@
 use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 
-use common::{ID, Dict, List, Object, ObjectData, Property};
-use hash::{Hasher, HasherReader, HasherWriter};
+use log::error;
+
+use crate::common::{ID, Dict, List, Object, ObjectData, Property};
+use crate::hash::{Hasher, HasherReader, HasherWriter};
 
 // Dictionary: d<id><key><value><key><value>...e
 // List: l<value><value>...e
@@ -290,7 +292,7 @@ pub fn deserialize<R: Read>(mut read: R) -> io::Result<Object> {
     };
     let object = Object {
         id: id,
-        data: data,
+        data,
     };
     Ok(object)
 }
@@ -310,8 +312,8 @@ pub fn hash_object(data: ObjectData) -> Object {
 mod tests {
     use std::io::Cursor;
 
-    use common::{ID, Dict, List, ObjectData, Property};
-    use serialize::{hash_object, serialize, deserialize};
+    use crate::common::{ID, Dict, List, ObjectData, Property};
+    use crate::serialize::{hash_object, serialize, deserialize};
 
     fn fake_id(digit: u8) -> ID {
         let mut s = [b'0' + digit as u8; 44];

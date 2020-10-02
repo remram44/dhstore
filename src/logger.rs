@@ -5,8 +5,8 @@
 
 use std::io::Write;
 
-use log_crate::{Log, Level, Metadata, Record,
-                SetLoggerError, set_boxed_logger};
+use log::{Log, Level, Metadata, Record,
+          SetLoggerError, set_boxed_logger};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 /// The logger that writes to stderr.
@@ -57,7 +57,5 @@ impl Log for StderrLogger {
 
 /// Sets up the logger object to log on stderr with the given log level.
 pub fn init(level: Level) -> Result<(), SetLoggerError> {
-    set_boxed_logger(
-        Box::new(StderrLogger::new(level))
-    )
+    set_boxed_logger(Box::new(StderrLogger::new(level)))
 }

@@ -7,8 +7,8 @@ use std::cmp::{Ord, Ordering};
 use std::collections::{BTreeMap, HashSet};
 use std::str::FromStr;
 
-use errors;
-pub use hash::{HASH_SIZE, ID};
+use crate::errors;
+pub use crate::hash::{HASH_SIZE, ID};
 
 /// Values that appear in an object's metadata.
 ///

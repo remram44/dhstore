@@ -7,9 +7,11 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-use common::{ID, EnumerableBlobStorage, BlobStorage};
-use errors::{self, Error};
-use hash::Hasher;
+use log::{error, info, warn};
+
+use crate::common::{ID, EnumerableBlobStorage, BlobStorage};
+use crate::errors::{self, Error};
+use crate::hash::Hasher;
 
 /// Filesystem-based blob storage implementation.
 ///

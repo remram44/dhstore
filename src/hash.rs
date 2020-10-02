@@ -257,7 +257,7 @@ impl<R: Read> Read for HasherReader<R> {
 
 #[cfg(test)]
 mod tests {
-    use ::ID;
+    use super::ID;
 
     fn run_tests(check: &Fn(&[u8], &str)) {
         check(b"abcdefghijklmnopqrstuvwxyz123456",

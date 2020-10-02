@@ -1,21 +1,14 @@
-#[macro_use]
-extern crate clap;
-#[macro_use]
-extern crate log;
-extern crate termcolor;
-
-extern crate dhstore;
-
 use std::fs::File;
 use std::io::{self, Write};
 use std::process;
 
-use clap::{App, Arg, SubCommand};
-use log::Level;
+use clap::{App, Arg, SubCommand, crate_version};
+use log::{Level, error};
 
+use dhstore;
 use dhstore::errors::Error;
 use dhstore::hash::ID;
-use dhstore::log::init;
+use dhstore::logger::init;
 
 fn main() {
     let verbose = &Arg::with_name("verbose")

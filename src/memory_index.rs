@@ -12,12 +12,13 @@ use std::io;
 use std::mem::swap;
 use std::path::{PathBuf, Path};
 
-use log_crate::Level;
+use log::Level;
+use log::{debug, error, info, log_enabled, warn};
 
-use common::{HASH_SIZE, Sort, ID, Dict, Object, ObjectData, Property,
-             ObjectIndex};
-use errors::{self, Error};
-use serialize;
+use crate::common::{HASH_SIZE, Sort, ID, Dict, Object, ObjectData, Property,
+                    ObjectIndex};
+use crate::errors::{self, Error};
+use crate::serialize;
 
 /// Return value from a Policy for some object.
 pub enum PolicyDecision {
@@ -37,7 +38,7 @@ pub enum PolicyDecision {
 /// for the index.
 pub trait Policy {
     fn handle(&mut self, property: &str, object: Object)
-              -> (PolicyDecision, Box<Policy>);
+              -> (PolicyDecision, Box<dyn Policy>);
 }
 
 /// Placeholder Policy that keeps everything.
@@ -51,7 +52,7 @@ impl KeepPolicy {
 
 impl Policy for KeepPolicy {
     fn handle(&mut self, property: &str, object: Object)
-              -> (PolicyDecision, Box<Policy>) {
+              -> (PolicyDecision, Box<dyn Policy>) {
         (PolicyDecision::Keep, Box::new(KeepPolicy))
     }
 }
@@ -146,7 +147,7 @@ pub struct MemoryIndex {
     permanodes: HashMap<ID, Permanode>,
     root: ID,
     log: Option<ID>,
-    policy: Box<Policy>,
+    policy: Box<dyn Policy>,
 }
 
 impl MemoryIndex {

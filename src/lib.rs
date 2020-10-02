@@ -1,17 +1,10 @@
 //! DHStore: A personal content management system.
 
-extern crate cdchunking;
-#[macro_use]
-extern crate log as log_crate;
-extern crate rand;
-extern crate sha2;
-extern crate termcolor;
-
 mod common;
 pub mod errors;
 mod file_storage;
 pub mod hash;
-pub mod log;
+pub mod logger;
 mod memory_index;
 mod serialize;
 
@@ -20,6 +13,7 @@ use std::io::{self, Read, Write};
 use std::path::Path;
 
 use cdchunking::{Chunker, ZPAQ, ChunkInput};
+use log::info;
 use rand::Rng;
 
 use common::{HASH_SIZE, Sort};
