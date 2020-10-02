@@ -12,7 +12,7 @@ use std::io;
 use std::mem::swap;
 use std::path::{PathBuf, Path};
 
-use log_crate::LogLevel;
+use log_crate::Level;
 
 use common::{HASH_SIZE, Sort, ID, Dict, Object, ObjectData, Property,
              ObjectIndex};
@@ -262,7 +262,7 @@ impl MemoryIndex {
             // This is run on all values of type reference on the object,
             // whether it is a list or a dict
             let mut insert = |target: &ID, key: Backkey, source: ID| {
-                if log_enabled!(LogLevel::Debug) {
+                if log_enabled!(Level::Debug) {
                     match key {
                         Backkey::Key(ref k) => {
                             debug!("Reference {} -> {} ({})",

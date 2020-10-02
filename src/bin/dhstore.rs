@@ -11,7 +11,7 @@ use std::io::{self, Write};
 use std::process;
 
 use clap::{App, Arg, SubCommand};
-use log::LogLevel;
+use log::Level;
 
 use dhstore::errors::Error;
 use dhstore::hash::ID;
@@ -86,10 +86,10 @@ fn main() {
         level += m.occurrences_of("verbose");
     }
     let level = match level {
-        0 => LogLevel::Warn,
-        1 => LogLevel::Info,
-        2 => LogLevel::Debug,
-        3 | _ => LogLevel::Trace,
+        0 => Level::Warn,
+        1 => Level::Info,
+        2 => Level::Debug,
+        3 | _ => Level::Trace,
     };
     init(level).unwrap();
 

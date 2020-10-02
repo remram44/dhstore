@@ -11,7 +11,7 @@ doc = false
 [dependencies]
 cdchunking = "0.2"
 clap = "2.20"
-log = "0.3"
+log = { version = "0.4", features = ["std"] }
 rand = "0.3"
 sha2 = "0.4"
 termcolor = "0.3"
