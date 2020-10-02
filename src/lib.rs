@@ -245,7 +245,7 @@ pub fn permanode(mut data: Dict, sort: Sort) -> Object {
     data.insert("sort".into(), Property::String(sort.into()));
     let mut random = [0u8; HASH_SIZE];
     rand::thread_rng().fill_bytes(&mut random);
-    let random = ID::from_slice(&random).unwrap().str();
+    let random = ID::from_bytes(&random).unwrap().str();
     data.insert("random".into(), Property::String(random));
     serialize::hash_object(ObjectData::Dict(data))
 }

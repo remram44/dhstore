@@ -35,7 +35,7 @@ pub const HASH_SIZE: usize = 32;
 
 impl ID {
     /// Make an ID from raw bytes.
-    pub fn from_slice(buf: &[u8]) -> Option<ID> {
+    pub fn from_bytes(buf: &[u8]) -> Option<ID> {
         if buf.len() == 32 {
             let mut bytes = [0u8; 32];
             bytes.clone_from_slice(buf);
@@ -271,7 +271,7 @@ mod tests {
     #[test]
     fn test_encode() {
         fn check(bin: &[u8], enc: &str) {
-            assert_eq!(ID::from_slice(bin).unwrap().str(),
+            assert_eq!(ID::from_bytes(bin).unwrap().str(),
                        enc);
         }
         run_tests(&check);
