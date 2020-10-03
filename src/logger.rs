@@ -5,8 +5,8 @@
 
 use std::io::Write;
 
-use log::{Log, Level, Metadata, Record,
-          SetLoggerError, set_boxed_logger};
+use log::{Log, Level, LevelFilter, Metadata, Record,
+          SetLoggerError, set_boxed_logger, set_max_level};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 /// The logger that writes to stderr.
@@ -37,8 +37,8 @@ impl Log for StderrLogger {
             let mut stderr = self.stderr.lock();
             let color = match record.metadata().level() {
                 Level::Error => Color::Red,
-                Level::Warn => Color::Magenta,
-                Level::Info => Color::Yellow,
+                Level::Warn => Color::Yellow,
+                Level::Info => Color::White,
                 Level::Debug => Color::Cyan,
                 Level::Trace => Color::Blue,
             };
@@ -57,5 +57,6 @@ impl Log for StderrLogger {
 
 /// Sets up the logger object to log on stderr with the given log level.
 pub fn init(level: Level) -> Result<(), SetLoggerError> {
+    set_max_level(LevelFilter::Info);
     set_boxed_logger(Box::new(StderrLogger::new(level)))
 }
