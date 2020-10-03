@@ -6,14 +6,23 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        rust-version: [stable, nightly]
+        include:
+          - os: macos-latest
+            rust-version: stable
+          - os: windows-latest
+            rust-version: stable
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
     - name: Set up Rust ${{ matrix.rust-version }}
       uses: actions-rs/toolchain@v1
       id: rustup
       with:
-        toolchain: stable
+        toolchain: ${{ matrix.rust-version }}
         override: true
     - name: Build
       run: cargo build --verbose
