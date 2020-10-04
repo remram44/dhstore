@@ -15,7 +15,7 @@ use std::path::{PathBuf, Path};
 use log::Level;
 use log::{debug, error, info, log_enabled, warn};
 
-use crate::common::{HASH_SIZE, Sort, ID, Dict, Object, ObjectData, Property,
+use crate::common::{HASH_STR_SIZE, Sort, ID, Dict, Object, ObjectData, Property,
                     ObjectIndex};
 use crate::errors::{self, Error};
 use crate::serialize;
@@ -341,7 +341,7 @@ impl MemoryIndex {
         };
         match permanode.get("random") {
             Some(&Property::String(ref s)) => {
-                if s.len() != HASH_SIZE {
+                if s.len() != HASH_STR_SIZE {
                     warn!("Invalid permanode {}: invalid random size {}",
                           id, s.len());
                     return;

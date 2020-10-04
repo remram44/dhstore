@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::str::FromStr;
 
 use crate::errors;
-pub use crate::hash::{HASH_SIZE, ID};
+pub use crate::hash::{HASH_SIZE, HASH_STR_SIZE, ID};
 
 /// Values that appear in an object's metadata.
 ///

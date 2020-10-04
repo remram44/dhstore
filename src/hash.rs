@@ -33,6 +33,9 @@ const BASE64_BYTES: &'static [u8] = &[
 /// This module uses SHA256, therefore this is 32.
 pub const HASH_SIZE: usize = 32;
 
+/// Size of the hash when represented in base64.
+pub const HASH_STR_SIZE: usize = 44;
+
 impl ID {
     /// Make an ID from raw bytes.
     pub fn from_bytes(buf: &[u8]) -> Option<ID> {
