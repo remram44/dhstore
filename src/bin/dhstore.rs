@@ -18,6 +18,7 @@ fn main() {
     let store_args = &[
         Arg::with_name("store")
             .short("d")
+            .long("store")
             .takes_value(true)
             .value_name("PATH")
             .help("Location of the store"),
@@ -54,7 +55,9 @@ fn main() {
                     .arg(Arg::with_name("ID")
                          .required(true)
                          .help("ID of object to print from"))
-                    .arg(Arg::with_name("--depth")
+                    .arg(Arg::with_name("depth")
+                         .short("D")
+                         .long("depth")
                          .takes_value(true)
                          .value_name("DEPTH")
                          .help("Maximum recursion depth")))
@@ -129,7 +132,7 @@ fn run_command(command: &str, matches: &clap::ArgMatches)
             let store = get_store()?;
             let id = ID::from_str(matches.value_of("ID").unwrap().as_bytes())
                 .ok_or(Error::InvalidInput("Input is not a valid ID"))?;
-            let depth = if let Some(arg) = matches.value_of_lossy("DEPTH") {
+            let depth = if let Some(arg) = matches.value_of_lossy("depth") {
                 match arg.parse() {
                     Ok(i) => Some(i),
                     Err(_) => {
